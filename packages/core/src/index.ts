@@ -1,4 +1,5 @@
 export * from "./autosave";
+export * from "./captions";
 export * from "./constants";
 export * from "./format";
 export * from "./ids";

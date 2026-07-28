@@ -23,6 +23,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ActionMenu, type ActionMenuItem } from "@/components/ActionMenu";
 import { AudioTrack } from "@/components/editor/AudioTrack";
+import { PreviewCanvas } from "@/components/editor/PreviewCanvas";
 import { ScriptTrack } from "@/components/editor/ScriptTrack";
 import { SegmentCard } from "@/components/editor/SegmentCard";
 import { VisualTrack } from "@/components/editor/VisualTrack";
@@ -33,6 +34,7 @@ import {
   pickVisualFromLibrary,
 } from "@/lib/editor/pickMedia";
 import { useEditor } from "@/lib/editor/useEditor";
+import { usePreviewPlayback } from "@/lib/editor/usePreviewPlayback";
 import { importAudioAsset } from "@/lib/storage/assets";
 import { resolveAssetUri } from "@/lib/storage/paths";
 import { theme } from "@/lib/theme";
@@ -60,6 +62,8 @@ export default function EditorScreen() {
     removeAsset,
     flush,
   } = editor;
+
+  const playback = usePreviewPlayback(project);
 
   const [isRenamingTitle, setIsRenamingTitle] = useState(false);
   const [actionsFor, setActionsFor] = useState<Segment | null>(null);
@@ -176,10 +180,7 @@ export default function EditorScreen() {
         </Pressable>
       </View>
 
-      {/* Preview canvas lands with task 8; the placeholder keeps the layout honest. */}
-      <View style={styles.previewPlaceholder}>
-        <Text style={styles.previewHint}>Preview</Text>
-      </View>
+      <PreviewCanvas project={project} playback={playback} resolveUri={resolveUri} />
 
       <Pressable style={styles.soundtrackRow}>
         <Text style={styles.soundtrackLabel}>
@@ -209,7 +210,12 @@ export default function EditorScreen() {
                 durationMs={resolveSegmentDurationMs(segment, project.assets, byId)}
                 captionsResolved={captionsResolved}
                 isExpanded={isExpanded}
-                onToggle={() => setExpandedSegmentId(isExpanded ? null : segment.id)}
+                onToggle={() => {
+                  setExpandedSegmentId(isExpanded ? null : segment.id);
+                  // Expanding seeks the canvas to that segment, so you always see
+                  // what you are editing (§2.4).
+                  if (!isExpanded) playback.seekToSegment(segment.id);
+                }}
                 onShowActions={() => setActionsFor(segment)}
               >
                 <ScriptTrack
