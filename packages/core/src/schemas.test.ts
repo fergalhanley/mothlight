@@ -12,7 +12,7 @@ describe("constants", () => {
   });
 
   test("bundle identifier is shared by both platforms", () => {
-    expect(BUNDLE_IDENTIFIER).toBe("io.mothlight.app");
+    expect(BUNDLE_IDENTIFIER).toBe("app.mothlight");
   });
 });
 

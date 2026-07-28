@@ -11,7 +11,7 @@ import type { ExpoConfig } from "expo/config";
 // Keep in sync with @mothlight/core: BUNDLE_IDENTIFIER and DEEP_LINK_SCHEME.
 // Duplicated as literals because app.config.ts is evaluated by the Expo CLI outside
 // the TypeScript path mapping used by the app bundle.
-const BUNDLE_IDENTIFIER = "io.mothlight.app";
+const BUNDLE_IDENTIFIER = "app.mothlight";
 const SCHEME = "mothlight";
 
 const config: ExpoConfig = {

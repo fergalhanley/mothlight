@@ -200,8 +200,8 @@ any other third-party sign-in. Mothlight offers Google and Facebook, so shipping
 app without Apple will get it rejected.
 
 1. Apple Developer → **Certificates, Identifiers & Profiles**.
-2. **Identifiers → App ID**: `io.mothlight.app`, enable the **Sign In with Apple** capability.
-3. **Identifiers → Services ID** (e.g. `io.mothlight.app.web`) — this is the OAuth
+2. **Identifiers → App ID**: `app.mothlight`, enable the **Sign In with Apple** capability.
+3. **Identifiers → Services ID** (e.g. `app.mothlight.web`) — this is the OAuth
    **client id**. Enable Sign In with Apple and configure:
    - Domain: `<project-ref>.supabase.co`
    - Return URL: `https://<project-ref>.supabase.co/auth/v1/callback`
@@ -211,7 +211,7 @@ app without Apple will get it rejected.
    expires after at most 6 months, so calendar a rotation reminder.
 6. Supabase Dashboard → **Authentication → Providers → Apple** → enable. **Services ID**
    goes in the client id field, the generated JWT in the secret field.
-7. For the native iOS flow add `io.mothlight.app` (the bundle id) to the provider's
+7. For the native iOS flow add `app.mothlight` (the bundle id) to the provider's
    authorized client IDs.
 
 ### 5. Where each value ends up

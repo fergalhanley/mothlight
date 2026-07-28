@@ -22,8 +22,14 @@ export const WEB_AUTH_CALLBACK_PATH = "/auth/callback";
  */
 export const OAUTH_PROVIDERS = ["google", "facebook", "apple"] as const;
 
-/** iOS bundle identifier / Android applicationId. */
-export const BUNDLE_IDENTIFIER = "io.mothlight.app";
+/**
+ * iOS bundle identifier / Android applicationId.
+ *
+ * One universal ID across iPhone, iPad, Google Play, and the Samsung Galaxy Store —
+ * reverse-DNS of mothlight.app. A separate iPad ID would mean separate listings forever.
+ * Locked before first submission; changing it after release is not possible.
+ */
+export const BUNDLE_IDENTIFIER = "app.mothlight";
 
 /** Max length accepted for a profile display name; mirrored by the zod schema. */
 export const DISPLAY_NAME_MAX_LENGTH = 50;
