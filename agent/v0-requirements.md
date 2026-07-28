@@ -407,8 +407,13 @@ If any of those six break, that's the bug queue. Everything else is v0.1.
   local notification on completion covers backgrounding. Confirm before wiring.
 - **Physical Android device** on the dev build — Media3, permissions, and FileProvider
   behaviour all diverge from the emulator. Get one in the loop today, not Thursday.
-  (An emulator, `Medium_Phone_API_36.1`, is in the loop as of 28 Jul. No physical device
-  yet, and no full Xcode on the dev machine, so **iOS is entirely unverified**.)
+  **This is now urgent rather than prudent.** As of 28 Jul the dev client builds and runs
+  on `Medium_Phone_API_36.1`, and the dashboard renders correctly with the seeded demo,
+  but the emulator's own `system_server` ANRs repeatedly under host load and eventually
+  crashed outright, which blocks interaction testing. The first Gradle build took 1h 5m.
+  A real device would make this loop minutes instead of an hour.
+  There is also no full Xcode on the dev machine — only Command Line Tools — so **iOS
+  cannot be built or verified here at all**.
 - **ElevenLabs licence check** (§4) — still blocking the bundled music beds, and therefore
   blocking the demo project's soundtrack. The demo currently ships with solid-colour
   visuals and no audio at all.
