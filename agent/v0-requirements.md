@@ -397,13 +397,20 @@ If any of those six break, that's the bug queue. Everything else is v0.1.
 | 4 | Identity | `mothlight.app` acquired → **`app.mothlight`**, one universal ID across iPhone, iPad, Play, and Samsung. No separate iPad ID. | 28 Jul |
 | 5 | Bundled music | **ElevenLabs-generated**, 3–5 beds, supplied during dev. Commercial + redistribution rights to be confirmed and recorded in-repo. User-generated music deferred to v1. | 28 Jul |
 | 6 | Store targets | **Google Play + Samsung Galaxy Store + App Store.** Android is the design reference; Samsung is the fastest path to a live in-window release. | 28 Jul |
+| 7 | Render service host | **Container on Fly or Railway.** No 15-minute timeout, job queue in-process, predictable cost, and standable-up in a day — which the Wednesday gate requires. Lambda's IAM/layer/bucket setup is time this week does not have. | 28 Jul |
+| 8 | No database on device | **Files only** — `project.json` per project directory, no SQLite/MMKV. Search has to read script text anyway, and a separate index is one more thing that can disagree with the truth on disk. The repository module is the seam if project counts ever justify it. | 28 Jul |
+| 9 | Segment caption override | **Tri-state**, not boolean: `captionsEnabled: true \| false \| null`, where null inherits `captionStyle.enabled`. A plain boolean cannot express "the agent omitted this", which the import path needs. | 28 Jul |
 
 ### Still open
 
-- **Render service host** — where the Remotion worker runs (Lambda vs a container on Fly/Railway
-  vs a box), and the upload size cap. Needs answering Monday/Tuesday, not Wednesday.
 - **Push vs poll for render completion** — poll-while-foregrounded is the v0 assumption; a
   local notification on completion covers backgrounding. Confirm before wiring.
 - **Physical Android device** on the dev build — Media3, permissions, and FileProvider
   behaviour all diverge from the emulator. Get one in the loop today, not Thursday.
+  (An emulator, `Medium_Phone_API_36.1`, is in the loop as of 28 Jul. No physical device
+  yet, and no full Xcode on the dev machine, so **iOS is entirely unverified**.)
+- **ElevenLabs licence check** (§4) — still blocking the bundled music beds, and therefore
+  blocking the demo project's soundtrack. The demo currently ships with solid-colour
+  visuals and no audio at all.
+- **Analytics vendor** — PostHog or Mixpanel (§6). Not yet chosen; nothing is wired.
   
