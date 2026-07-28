@@ -40,7 +40,9 @@ export function ScriptTrack({
         <View style={styles.captionCopy}>
           <Text style={styles.captionLabel}>Captions</Text>
           <Text style={styles.captionHint}>
-            {segment.captionsEnabled === null ? "Following the project setting" : "Set for this segment"}
+            {segment.captionsEnabled === null
+              ? "Following the project setting"
+              : "Set for this segment"}
           </Text>
         </View>
 
