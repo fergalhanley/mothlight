@@ -1,0 +1,21 @@
+{
+  "name": "@mothlight/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "biome",
+    "tsconfig"
+  ],
+  "exports": {
+    "./biome": "./biome/base.json",
+    "./tsconfig/base": "./tsconfig/base.json",
+    "./tsconfig/bun": "./tsconfig/bun.json",
+    "./tsconfig/library": "./tsconfig/library.json",
+    "./tsconfig/nextjs": "./tsconfig/nextjs.json"
+  },
+  "scripts": {
+    "lint": "biome check .",
+    "typecheck": "echo \"@mothlight/config is JSON-only, nothing to typecheck\""
+  }
+}

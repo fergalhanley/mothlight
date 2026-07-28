@@ -1,0 +1,37 @@
+{
+  "name": "mothlight",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "bun@1.3.7",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules .turbo",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:types": "bun run --cwd packages/db generate"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.5",
+    "turbo": "2.10.7",
+    "typescript": "6.0.3"
+  },
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "engines": {
+    "bun": ">=1.3.0",
+    "node": ">=20"
+  }
+}

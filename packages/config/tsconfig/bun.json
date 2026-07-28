@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Mothlight Bun Service",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "types": ["bun"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx"
+  }
+}

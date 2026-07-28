@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Mothlight Next.js",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ES2023"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "plugins": [{ "name": "next" }],
+    "allowJs": true,
+    "noEmit": true
+  }
+}
