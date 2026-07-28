@@ -1,0 +1,30 @@
+{
+  "name": "@mothlight/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/database.types.ts",
+    "./browser": "./src/browser.ts",
+    "./server": "./src/server.ts",
+    "./admin": "./src/admin.ts"
+  },
+  "scripts": {
+    "generate": "supabase gen types typescript --local --schema public > src/database.types.ts && biome format --write src/database.types.ts",
+    "generate:remote": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" --schema public > src/database.types.ts && biome format --write src/database.types.ts",
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/ssr": "0.12.3",
+    "@supabase/supabase-js": "2.110.9"
+  },
+  "devDependencies": {
+    "@mothlight/config": "workspace:*",
+    "@types/bun": "latest",
+    "typescript": "6.0.3"
+  }
+}
