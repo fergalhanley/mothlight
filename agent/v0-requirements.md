@@ -1,0 +1,409 @@
+# Mothlight — v0.0 Requirements
+
+**Goal:** smallest complete app that survives App Review and lets someone make a short-form
+video on their phone. No AI generation. No RevenueCat. No accounts.
+
+**Target:** submit to all three stores by Fri 31 Jul; **manual/held release** on or after 1 Aug.
+Samsung Galaxy Store is likely to be live first (no closed-testing requirement) and is an
+eligible Shipaton store this year.
+
+---
+
+## 0. Framing decisions (locked before build)
+
+| Decision | v0 answer | Why |
+|---|---|---|
+| Platforms | **Android-first** (Google Play + Samsung Galaxy Store), iOS/iPadOS in parallel | Android is the design reference for interaction patterns; Samsung is the fastest route to a live in-window release. |
+| Identity | Bundle ID / applicationId **`app.mothlight`** — one universal ID across iPhone, iPad, and both Android stores | Reverse-DNS of `mothlight.app`. Universal apps need one ID; separate iPad IDs mean separate listings forever. |
+| Auth | **None.** Local-only, no sign-in wall. | Removes backend from critical path; avoids App Store 5.1.1(v) friction. Supabase auth stays in the repo, dormant. |
+| Storage | Local device only (SQLite/MMKV + app sandbox files) | No sync, no upload, no accounts. Instant, offline, cheap. |
+| Canvas | Fixed **1080×1920, 30fps, H.264/AAC, MP4** | One aspect ratio to design and render for. Others are v0.2. |
+| Max length | Soft cap **90s**, hard cap 180s | Keeps render times and memory sane. |
+| Render | **Server-side, confirmed** (§7), with a Wednesday fallback gate | On-device FFmpeg in RN is a maintenance hazard in 2026. |
+| Segment model | Timeline is an ordered list of **segments**; everything is scoped to a segment except the soundtrack | Matches the mental model of a scripted short. |
+
+---
+
+## 1. Data model — `project.json`
+
+This is the **import/export format** and the target for the agent script-writing skill.
+Version it from day one. Validate with zod on import; reject with a readable error.
+
+```jsonc
+{
+  "schemaVersion": "0.1",
+  "id": "uuid",
+  "name": "Why moths chase light",
+  "createdAt": "2026-07-28T04:00:00Z",
+  "updatedAt": "2026-07-28T04:00:00Z",
+  "canvas": { "width": 1080, "height": 1920, "fps": 30 },
+
+  "captionStyle": {
+    "enabled": true,              // project-level default
+    "font": "Inter-Bold",
+    "sizePt": 48,
+    "color": "#FFFFFF",
+    "strokeColor": "#000000",
+    "position": "lower-third",    // upper-third | center | lower-third
+    "wordsPerCue": 4
+  },
+
+  "soundtrack": {
+    "assetId": "asset_music_1",   // null = none
+    "gainDb": -18,
+    "duckUnderVo": true,
+    "fadeOutMs": 1500
+  },
+
+  "segments": [
+    {
+      "id": "seg_1",
+      "durationMode": "auto",     // auto | manual
+      "durationMs": 4200,         // computed when auto, authoritative when manual
+      "script": "Moths don't love light. They're lost.",
+      "captionsEnabled": true,    // per-segment override of captionStyle.enabled
+
+      "visual": {
+        "main": {
+          "type": "image",        // image | video | color
+          "assetId": "asset_1",
+          "fit": "cover",
+          "color": null,          // used when type === "color"
+          "trimStartMs": 0,       // video only
+          "trimEndMs": null,      // video only
+          "muteSourceAudio": true,
+          "kenBurns": { "enabled": true, "from": "center", "to": "zoom-in" }
+        },
+        "overlays": [
+          {
+            "id": "ov_1",
+            "type": "text",       // text | image | drawing
+            "text": "1963",
+            "x": 0.5, "y": 0.2,   // normalised 0–1, anchor = centre
+            "scale": 1.0,
+            "rotation": 0,
+            "style": { "font": "Inter-Bold", "sizePt": 64, "color": "#FFCC00" },
+            "startMs": 0,
+            "endMs": null         // null = to end of segment
+          }
+        ],
+        "effects": []             // reserved — not rendered in v0
+      },
+
+      "audio": {
+        "vo": { "assetId": "asset_vo_1", "gainDb": 0, "trimStartMs": 0 },
+        "sfx": []                 // reserved — not rendered in v0
+      }
+    }
+  ],
+
+  "assets": [
+    {
+      "id": "asset_1",
+      "kind": "image",            // image | video | audio
+      "uri": "assets/asset_1.jpg",// relative to project dir; absolute after import
+      "source": "photo-library",  // photo-library | files | recording | bundled
+      "originalFilename": "IMG_0421.HEIC",
+      "durationMs": null,
+      "width": 4032, "height": 3024
+    }
+  ]
+}
+```
+
+**Duration rules (`durationMode: "auto"`):**
+`durationMs = max(voDurationMs, videoClipDurationMs, 3000)` — 3s default for a still with no VO.
+Manual mode: user-set, but never shorter than the VO.
+
+**Import behaviour:** a `.json` with no `assets` (i.e. an agent-generated script) is valid.
+Segments then have `script` + empty visuals, and the editor shows them as "needs a visual"
+placeholders. **This is the intended agent workflow** — the agent writes structure and words;
+the human adds pictures.
+
+---
+
+## 2. Screens
+
+### 2.1 Splash / load
+- Brand mark, single accent animation, ≤1.2s perceived.
+- Warms local DB, migrates schema if needed, seeds the demo project on **first launch only**.
+- **Seed a real demo project** ("Mothlight — 30 second tour"): 4 segments, bundled images,
+  bundled VO, bundled music, captions on. This is the single highest-value item in v0 —
+  it's what the App Review tester opens, and what a new user learns from.
+
+### 2.2 Dashboard
+- Header: wordmark left, `+` (new project) right.
+- Search field: filters by project name and script content, debounced, case-insensitive.
+- List: newest-**last-opened** first. Each row: 9:16 thumbnail (first segment's visual or
+  placeholder), name, duration, segment count, relative modified time.
+- Tap row → editor.
+- **Swipe to dismiss → optimistic delete + snackbar** ("Project deleted — UNDO"), Material
+  convention, used on both platforms. Row animates out immediately; keep the record in memory
+  for 5s; UNDO restores it in place; snackbar expiry (or app backgrounding) commits the hard
+  delete of the project directory. No confirm dialog.
+- Long-press row → context menu: Rename, Duplicate, Export project, Delete.
+- Overflow (header) → Import project… , Settings, About / Get the agent skill.
+- **Empty state** (only reachable after deleting the demo): illustration + "Create your first
+  project" + "Import a script".
+
+### 2.3 Import
+- Entry points: dashboard overflow → Import; **OS share sheet** (register `.json` /
+  `public.json` as an accepted document type); **file open** from Files app.
+- Validate against schema → on success, create project and open it; on failure, show a
+  non-scary error naming the first problem ("Segment 3 has no `script` or `visual`").
+- Include a **"Get the agent skill"** screen: a short explanation + a copyable prompt/schema
+  block + a link to the docs page on the marketing site. Zero build cost, big differentiator.
+
+### 2.4 Editor
+
+Layout, top to bottom:
+
+```
+┌─────────────────────────────────────┐
+│ ‹   Moths chase light   0:42 · 6 ⋯  │  top bar
+├─────────────────────────────────────┤
+│                                     │
+│         9:16 PREVIEW CANVAS         │  ~42% height, tap to play/pause
+│                                     │
+│  ▶ ──────●───────────────  0:12     │  scrubber
+├─────────────────────────────────────┤
+│ ♪ Soundtrack: Dust Motes      ⌄     │  project-level row
+├─────────────────────────────────────┤
+│ ┌─ SEGMENT 1 ──────────── 4.2s ─┐   │
+│ │ [thumb] "Moths don't love…"   │   │  collapsed segment card
+│ │ 🎙 ✓  💬 ✓                     │   │
+│ └───────────────────────────────┘   │  vertical scroll
+│ ┌─ SEGMENT 2 ──────────── 3.0s ─┐   │
+│ │ …                             │   │
+│ └───────────────────────────────┘   │
+│                                     │
+│         [ + Add segment ]           │
+└─────────────────────────────────────┘
+```
+
+**Top bar:** back (‹) → dashboard (autosaves first); centre shows project name (tap to
+rename inline) with total duration + segment count beneath; right is the ⋯ overflow menu.
+
+**Tapping a segment card** expands it **inline, as an accordion** (decided — not a pushed
+full-screen editor), revealing three collapsible tracks. Only one segment is expanded at a
+time; expanding another collapses the previous. Expanding scrolls the segment to just below
+the preview and seeks playback to that segment's start, so the canvas always shows what
+you're editing. Overlay positioning is done by dragging directly on the preview canvas above,
+which is why the accordion works — the canvas stays visible.
+
+**Track: Script**
+- Multiline text input, autogrows.
+- 🎙 button → OS dictation (`expo-speech-recognition` or the native keyboard dictation key —
+  keyboard dictation is free and needs no permission plumbing; prefer it for v0).
+- Captions toggle (per segment), with style inherited from project.
+
+**Track: Visual**
+- *Main* row: thumbnail + "Choose image or video" → photo library / Files / solid colour.
+  Once set: Replace, Trim (video only, simple two-handle trim), Ken Burns toggle (stills),
+  Remove.
+- *Overlays* row: list of overlay chips + `+ Text` and `+ Draw`.
+  - Text overlay editor: type text, drag to position on a canvas-preview, pinch to scale,
+    colour swatches, font size slider.
+  - **Drawing: see §8 cut list.** If included: freehand path capture on the canvas preview,
+    stroke colour + width, per-stroke undo, saved as a transparent PNG asset.
+- *Effects* row: **not shown in v0.**
+
+**Track: Audio**
+- *Voiceover* row: Record (hold-to-record or tap-start/tap-stop, waveform while recording),
+  playback, re-record, delete, gain slider. Or import an audio file.
+- *SFX* row: **not shown in v0.**
+- Background music is **project-level** (the row above the segment list), not per-segment.
+  This deviates from the original spec deliberately: per-segment background music is not a
+  thing users want, and it complicates crossfades. Per-segment override is v0.2 if anyone asks.
+
+**Segment actions** (long-press card or ⋯ on the card): Move up, Move down, Duplicate, Delete.
+Drag-to-reorder is v0.1 — move up/down is 20 minutes of work and covers the need.
+
+**Preview playback:** real-time composition play in-app — layered `expo-video`/`Image` +
+overlay views + `expo-audio` for VO/music, driven by a single clock. It does **not** need to
+be frame-perfect; it needs to be honest about order, timing, and content.
+
+### 2.5 Overflow menu (editor)
+- Rename project
+- Export script (`.md` — segment headings + script text, via OS share sheet)
+- Export timeline (**FCP7 XML**, via OS share sheet — see §8, candidate cut)
+- Export project (`.json` — the schema above, media referenced not embedded)
+- **Render video** → §7
+- Delete project
+
+---
+
+## 3. Permissions (each needs a purpose string — missing strings = instant rejection)
+
+| Permission | When asked | Purpose string (draft) |
+|---|---|---|
+| Photo library (read) | First time adding a visual | "Mothlight needs access to your photos and videos so you can use them in your projects." |
+| Photo library (add) | First successful render | "Mothlight saves finished videos to your photo library." |
+| Microphone | First VO record | "Mothlight uses the microphone to record voiceovers for your videos." |
+| Speech recognition | Only if using in-app dictation | "Mothlight converts your speech to text so you can dictate scripts." |
+
+Request **in context, at point of use** — never a permission wall on launch.
+
+---
+
+## 4. Media handling
+
+- On selection, **copy** the asset into the project's sandbox directory
+  (`Documents/projects/<id>/assets/`). Never hold a photo-library reference — assets get
+  deleted, moved, or re-encoded by the OS and your project silently breaks.
+- Downscale stills to max 2160px on the long edge on import (memory + render time).
+- Show a progress indicator for imports > 500ms.
+- Delete the project directory when the project is deleted.
+- Bundled music: 3–5 beds, **generated on ElevenLabs** (Fergal to supply during dev), kept
+  deliberately limited in v0. User-generated soundtracks are a v1 feature and a natural
+  RevenueCat-metered one.
+  - **Blocking check:** confirm the ElevenLabs plan tier grants commercial use *and*
+    redistribution inside a distributed application. Keep a written record of the licence
+    basis in `assets/music/LICENCE.md` alongside the files. If there's any ambiguity, swap in
+    a CC0 pack — three background beds are not worth a takedown.
+  - Loop-friendly, ~60–90s each, -18 LUFS-ish, named descriptively (mood, not track number).
+
+---
+
+## 5. Persistence & safety
+
+- Autosave on every mutation, debounced 500ms. No "Save" button anywhere.
+- Write to a temp file then atomically rename — never leave a half-written project.json.
+- Restore last editor state on relaunch (which project, which segment expanded).
+- Schema migration hook in place (even though there's nothing to migrate yet).
+
+---
+
+## 6. Instrumentation (in v0 — the growth graph starts at launch)
+
+- **Analytics** (PostHog or Mixpanel): app_open, project_created, project_imported,
+  segment_added, visual_added, vo_recorded, captions_enabled, render_started,
+  render_completed, render_failed, export_xml, export_script, share_completed.
+- **Crash reporting** (Sentry) with source maps.
+- **EAS Update** configured with a `production` channel — JS-only fixes ship without review,
+  which is what makes weekly iteration actually weekly.
+
+---
+
+## 7. Render — the one genuinely risky item
+
+On-device FFmpeg in React Native is a bad bet in 2026: FFmpegKit was retired in 2025 and its
+binaries pulled; the RN ecosystem has no clear successor, only community forks with low
+download counts. Three viable paths:
+
+**A. Server-side render — DECIDED for v0.**
+Upload the project + assets → job queue → Remotion render on a worker → signed URL back →
+app downloads and saves to Photos.
+- *Pros:* uses the Remotion pipeline you already have; puts the backend in production early,
+  which every v1 AI feature needs anyway; render quality/consistency is fully controlled.
+- *Cons:* requires network; upload of user media (cap at ~150MB/project for v0); infra + cost;
+  needs a job status UI and ideally a push notification.
+- *v0 simplification:* poll for status while the app is foregrounded, show a progress screen,
+  allow backgrounding with a local notification on completion.
+
+**B. Native composition module (too big for Friday — but closer than it was).**
+Android `Media3 Transformer` does multi-asset composition, overlays, effects *and* hardware
+encode in one library; iOS needs `AVMutableComposition` + `AVVideoComposition` separately.
+Because Android is the reference platform, this is now a realistic **v0.1/v0.2** target on
+Android alone — offline, instant, zero marginal cost — while iOS stays on path A until it
+earns the AVFoundation work. Don't start it this week; do design the render interface so the
+app doesn't care which engine answers.
+
+**C. Ship v0.0 with no MP4 export.** Preview + script export + XML export only.
+- *Risk:* App Review guideline 4.2 (minimum functionality) — a video app that can't output a
+  video invites a "this feels incomplete" rejection, and it weakens the demo badly.
+- Use only as a Thursday-night emergency parachute, and if used, make the XML + script exports
+  visibly excellent so the app reads as a *pre-production tool*, not a broken editor.
+
+**Decision gate: Wednesday EOD.** If path A isn't producing an MP4 end-to-end by then, fall
+back to C, submit, and land render as the v0.1 update in week one.
+
+Render output: 1080×1920, H.264 High, 30fps, ~8–10 Mbps, AAC 128kbps stereo, faststart.
+Save to Photos, then offer the OS share sheet immediately.
+
+---
+
+## 8. Cut list (do these only if the critical path is clear)
+
+| Item | Call |
+|---|---|
+| Drawing markup | **Cut to v0.1.** Text overlays cover 80% of the need at 20% of the cost. Gesture canvas + undo + serialisation is a day you don't have. |
+| FCP7 XML export | **Keep if Wednesday looks good, else v0.1.** Note the media-path problem: XML references files by path, so export must either write a folder alongside the XML or document that the user copies media manually. Test the output actually opens in Resolve before shipping it. |
+| Video/audio "effects" sub-tracks | **Cut.** Keep the schema fields, don't render the UI. Disabled/"coming soon" rows read as incomplete to reviewers. |
+| Drag-to-reorder segments | Cut — move up/down instead. |
+| Undo/redo | Cut. Destructive actions get confirmations instead. |
+| Per-segment background music | Cut — project-level soundtrack only. |
+| Voice-to-text in-app | Use the **keyboard dictation key** (free, no permission, no library). Custom speech recognition is v0.1. |
+
+---
+
+## 9. Store submission checklist
+
+**Blocking, and mostly not code:**
+- [ ] Bundle ID / applicationId locked as **`app.mothlight`** everywhere before first submission
+- [ ] Upload keystore generated and backed up somewhere that isn't one laptop
+- [ ] **Samsung Galaxy Store** — Samsung developer account + Seller Portal registration; same
+      AAB/APK, no closed-testing requirement, review in days. **Most likely to be live first;
+      treat it as the primary route to an in-window public release.**
+- [ ] Google Play: production access confirmed — **if this is a new personal account, the
+      ~12-tester / 14-day closed-test requirement means Play production is mid-August at
+      best.** Start the closed track today; recruit testers in the Shipaton Discord (offer
+      reciprocal testing — everyone there has the same problem).
+- [ ] Play: confirm the current required `targetSdk` before building — Google raises the
+      floor annually around the end of August, and it applies to new submissions.
+- [ ] Note: Play App Signing re-signs with Google's key while Samsung ships yours, so the same
+      package installed from different stores can't cross-update. Expected, not a bug.
+- [ ] Apple Developer membership active; App Store Connect app record created; universal
+      (iPhone + iPad) device family on the single bundle ID
+- [ ] **Privacy policy URL live** (Next.js marketing site — this is a Friday dependency, not a
+      nice-to-have) + support URL + marketing URL
+- [ ] Privacy nutrition label / Play Data Safety form (v0 collects: analytics + crash only;
+      media never leaves the device unless path A render is enabled — if it is, disclose it)
+- [ ] Age rating questionnaire (4+ / Everyone is achievable for v0 with no UGC sharing)
+- [ ] App icon 1024×1024, no alpha
+- [ ] Screenshots: Play (phone + 7"/10" tablet), Samsung, and 6.7"/6.5" iPhone; generate them
+      all from the demo project in one pass
+- [ ] Play feature graphic (1024×500) and short/full descriptions
+- [ ] Name + subtitle + keywords: `Mothlight` / subtitle carrying the ASO terms
+- [ ] **"Manually release this version"** selected — do not let it publish before 1 Aug
+- [ ] Demo account note in Review Notes: "No account required. A demo project is pre-loaded
+      on first launch — open it and tap Render to see the full flow."
+- [ ] Export compliance: uses only standard encryption (HTTPS) → declare accordingly
+
+---
+
+## 10. Definition of done for v0.0
+
+A person who has never seen the app can, in under five minutes, on a phone, with no account:
+
+1. Open it, see a demo project, and understand what the app is.
+2. Create a new project, add three segments, write a line of script into each.
+3. Add a photo to each segment and record a voiceover for one.
+4. Turn on captions, pick a soundtrack.
+5. Play it back and see something that looks like a short-form video.
+6. Render it, find it in their camera roll, and post it to TikTok from there.
+
+If any of those six break, that's the bug queue. Everything else is v0.1.
+
+---
+
+## 11. Decision log
+
+| # | Decision | Resolution | Date |
+|---|---|---|---|
+| 1 | Render path | **A — server-side.** Wednesday EOD gate; fall back to §7C if no end-to-end MP4 by then. Android native render (Media3) becomes a v0.1/v0.2 target. | 28 Jul |
+| 2 | Delete interaction | **Android convention** — swipe-to-dismiss + optimistic delete + UNDO snackbar, on both platforms. No confirm dialog. | 28 Jul |
+| 3 | Segment expansion | **Inline accordion**, one open at a time, preview canvas stays visible above. | 28 Jul |
+| 4 | Identity | `mothlight.app` acquired → **`app.mothlight`**, one universal ID across iPhone, iPad, Play, and Samsung. No separate iPad ID. | 28 Jul |
+| 5 | Bundled music | **ElevenLabs-generated**, 3–5 beds, supplied during dev. Commercial + redistribution rights to be confirmed and recorded in-repo. User-generated music deferred to v1. | 28 Jul |
+| 6 | Store targets | **Google Play + Samsung Galaxy Store + App Store.** Android is the design reference; Samsung is the fastest path to a live in-window release. | 28 Jul |
+
+### Still open
+
+- **Render service host** — where the Remotion worker runs (Lambda vs a container on Fly/Railway
+  vs a box), and the upload size cap. Needs answering Monday/Tuesday, not Wednesday.
+- **Push vs poll for render completion** — poll-while-foregrounded is the v0 assumption; a
+  local notification on completion covers backgrounding. Confirm before wiring.
+- **Physical Android device** on the dev build — Media3, permissions, and FileProvider
+  behaviour all diverge from the emulator. Get one in the loop today, not Thursday.
+  

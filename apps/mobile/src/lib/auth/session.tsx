@@ -1,6 +1,6 @@
 import type { Session } from "@supabase/supabase-js";
 import { createContext, type ReactNode, use, useEffect, useMemo, useState } from "react";
-import { supabase } from "./supabase";
+import { getSupabaseClient } from "./supabase";
 
 type SessionState = {
   session: Session | null;
@@ -19,14 +19,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth
-      .getSession()
+    getSupabaseClient()
+      .auth.getSession()
       .then(({ data }) => setSession(data.session))
       .finally(() => setIsLoading(false));
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-    });
+    const { data: subscription } = getSupabaseClient().auth.onAuthStateChange(
+      (_event, nextSession) => {
+        setSession(nextSession);
+      },
+    );
 
     return () => subscription.subscription.unsubscribe();
   }, []);

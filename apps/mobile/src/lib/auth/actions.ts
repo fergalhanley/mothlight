@@ -1,6 +1,6 @@
 import { MOBILE_AUTH_CALLBACK_URL, type OAuthProvider } from "@mothlight/core";
 import * as WebBrowser from "expo-web-browser";
-import { supabase } from "./supabase";
+import { getSupabaseClient } from "./supabase";
 
 /**
  * Runs a provider sign-in in an in-app browser session and feeds the resulting code
@@ -11,7 +11,7 @@ import { supabase } from "./supabase";
  * root README.
  */
 export async function signInWithProvider(provider: OAuthProvider) {
-  const { data, error } = await supabase.auth.signInWithOAuth({
+  const { data, error } = await getSupabaseClient().auth.signInWithOAuth({
     provider,
     options: {
       redirectTo: MOBILE_AUTH_CALLBACK_URL,
@@ -37,19 +37,19 @@ export async function exchangeCodeFromUrl(url: string) {
   const code = new URL(url).searchParams.get("code");
   if (!code) throw new Error("Sign-in callback did not include an authorization code");
 
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data, error } = await getSupabaseClient().auth.exchangeCodeForSession(code);
   if (error) throw error;
   return data.session;
 }
 
 export async function signInWithEmail(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await getSupabaseClient().auth.signInWithPassword({ email, password });
   if (error) throw error;
   return data.session;
 }
 
 export async function signUpWithEmail(email: string, password: string) {
-  const { data, error } = await supabase.auth.signUp({
+  const { data, error } = await getSupabaseClient().auth.signUp({
     email,
     password,
     options: { emailRedirectTo: MOBILE_AUTH_CALLBACK_URL },
@@ -60,6 +60,6 @@ export async function signUpWithEmail(email: string, password: string) {
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
+  const { error } = await getSupabaseClient().auth.signOut();
   if (error) throw error;
 }
