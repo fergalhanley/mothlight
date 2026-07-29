@@ -403,8 +403,18 @@ If any of those six break, that's the bug queue. Everything else is v0.1.
 
 ### Still open
 
+- **Render gate (§7) — decide.** Path A is built end to end in code: `apps/render` is a
+  Node + Hono + Remotion service with a Dockerfile, and the app has the client, preflight,
+  progress screen, and save-to-Photos. **It has never produced a finished MP4**, because
+  Remotion 4.x requires macOS 15 and the dev machine is macOS 13.7.8 — the smoke render
+  bundles the composition, launches Chromium, and renders frames to ~50%, then dies when
+  Remotion's bundled ffmpeg fails to load (`built for macOS 15.0 which is newer than
+  running OS`). That is a host limitation, not a code fault, and would not occur in the
+  Linux container. **Someone on macOS 15+ or with Docker needs to run
+  `bun run --cwd apps/render smoke` before this can be called done.**
 - **Push vs poll for render completion** — poll-while-foregrounded is the v0 assumption; a
   local notification on completion covers backgrounding. Confirm before wiring.
+  (Poll is implemented; the local notification is not.)
 - **Physical Android device** on the dev build — Media3, permissions, and FileProvider
   behaviour all diverge from the emulator. Get one in the loop today, not Thursday.
   **This is now urgent rather than prudent.** As of 28 Jul the dev client builds and runs

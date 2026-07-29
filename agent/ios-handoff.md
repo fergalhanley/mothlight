@@ -175,3 +175,34 @@ prominently rather than burying it in a commit.
 - Two things are still blocked on Fergal: the **ElevenLabs licence check** for bundled
   music, and the **analytics vendor** choice. The demo project has no audio at all until
   the first is resolved.
+
+---
+
+## Added 29 Jul: the render service needs you too
+
+`apps/render` (Node + Hono + Remotion) is built but has **never produced an MP4**. The dev
+machine is macOS 13.7.8 and Remotion 4.x requires macOS 15, so the smoke render bundles
+the composition, launches Chromium, renders frames to ~50%, and then dies when Remotion's
+bundled ffmpeg fails to load:
+
+```
+dyld: Symbol not found: _AVCaptureDeviceTypeContinuityCamera
+  libavdevice.dylib (built for macOS 15.0 which is newer than running OS)
+```
+
+That is the host OS, not the code — the composition itself compiled, mounted, and rendered
+frames. **If your Mac is macOS 15 or later, please run this first, before anything else:**
+
+```bash
+bun install
+bun run --cwd apps/render smoke
+```
+
+It renders a two-segment colour-and-captions video needing no media, and prints the output
+path. If it writes an MP4, path A is proven and the §7 gate is met. If it fails for any
+reason other than the macOS version, that is the single most important thing to report.
+
+Then, if you have time: `bun run --cwd apps/render dev`, point
+`EXPO_PUBLIC_RENDER_API_URL` at it, and try Render video from the editor — that exercises
+upload, poll, download, and save-to-Photos, which is §10's sixth and final step and the
+only one still unproven.

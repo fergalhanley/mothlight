@@ -136,12 +136,9 @@ export default function EditorScreen() {
         label: "Export project (.json)",
         onPress: () => void runExport(shareProjectJson(project), "Project export"),
       },
-      {
-        label: "Render video",
-        onPress: () => setNotice("Rendering isn't wired up yet."),
-      },
+      { label: "Render video", onPress: () => router.push(`/render/${project.id}`) },
     ];
-  }, [project, runExport]);
+  }, [project, runExport, router.push]);
 
   const segmentActions = useMemo((): ActionMenuItem[] => {
     if (!actionsFor || !project) return [];

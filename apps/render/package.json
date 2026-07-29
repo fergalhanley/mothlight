@@ -1,0 +1,32 @@
+{
+  "name": "@mothlight/render",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "smoke": "tsx src/smoke-render.ts",
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'No unit tests: the pure logic lives in @mothlight/core. End-to-end check: bun run --cwd apps/render smoke'"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.0.12",
+    "@mothlight/core": "workspace:*",
+    "@remotion/bundler": "4.0.500",
+    "@remotion/renderer": "4.0.500",
+    "hono": "4.12.32",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.500",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@mothlight/config": "workspace:*",
+    "@types/node": "^24.10.1",
+    "@types/react": "~19.2.2",
+    "tsx": "4.23.1",
+    "typescript": "6.0.3"
+  }
+}

@@ -8,4 +8,5 @@ export * from "./ids";
 export * from "./project";
 export * from "./project-ops";
 export * from "./project-parse";
+export * from "./render";
 export * from "./schemas";

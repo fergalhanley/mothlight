@@ -32,6 +32,7 @@ export default function RootLayout() {
             <Stack.Screen name="index" />
             <Stack.Screen name="project/[id]" />
             <Stack.Screen name="import" />
+            <Stack.Screen name="render/[id]" />
           </Stack>
         ) : (
           <Splash />

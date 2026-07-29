@@ -1,0 +1,12 @@
+{
+  "extends": "@mothlight/config/tsconfig/base",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "remotion/**/*.ts", "remotion/**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}
