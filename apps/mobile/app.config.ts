@@ -86,7 +86,16 @@ const config: ExpoConfig = {
 
   plugins: [
     "expo-router",
-    "expo-secure-store",
+    [
+      "expo-secure-store",
+      {
+        // v0 has no accounts, so SecureStore is only reachable from the dormant auth
+        // module and nothing ever passes requireAuthentication. Without this, the plugin
+        // declares NSFaceIDUsageDescription for a prompt the app cannot raise, which is
+        // an unused permission a reviewer will ask about.
+        faceIDPermission: false,
+      },
+    ],
     "expo-web-browser",
     "expo-sharing",
     "expo-image",
@@ -97,7 +106,11 @@ const config: ExpoConfig = {
         photosPermission: PHOTOS_READ_PERMISSION,
         // v0 never opens the camera — adding a visual means picking an existing one.
         cameraPermission: false,
-        microphonePermission: false,
+        // microphonePermission is deliberately NOT set to false here. It is the same
+        // Info.plist key (NSMicrophoneUsageDescription) that expo-audio needs for
+        // voiceover, and `false` makes this plugin *delete* it — which silently stripped
+        // the string and would have crashed recording on iOS. Left unset, the permissions
+        // helper preserves whatever expo-audio already wrote, whatever the plugin order.
       },
     ],
     [
@@ -112,6 +125,11 @@ const config: ExpoConfig = {
       "expo-audio",
       {
         microphonePermission: MICROPHONE_PERMISSION,
+        // v0 has no background playback feature: preview stops when the app backgrounds.
+        // The plugin defaults this to true, which declares the `audio` UIBackgroundMode —
+        // a capability Apple expects to see justified by a user-facing feature.
+        enableBackgroundPlayback: false,
+        enableBackgroundRecording: false,
       },
     ],
   ],
