@@ -40,6 +40,17 @@ const config: ExpoConfig = {
     bundleIdentifier: BUNDLE_IDENTIFIER,
     // Universal app: one bundle ID covers iPhone and iPad, so there is one listing.
     supportsTablet: true,
+    infoPlist: {
+      // Lets a .json project be opened from Files, Mail, or a share sheet (§2.3).
+      CFBundleDocumentTypes: [
+        {
+          CFBundleTypeName: "Mothlight project",
+          CFBundleTypeRole: "Editor",
+          LSHandlerRank: "Alternate",
+          LSItemContentTypes: ["public.json"],
+        },
+      ],
+    },
   },
 
   android: {
@@ -51,6 +62,20 @@ const config: ExpoConfig = {
       monochromeImage: "./assets/android-icon-monochrome.png",
     },
     predictiveBackGestureEnabled: false,
+    intentFilters: [
+      // Opening a .json from a file manager or download.
+      {
+        action: "VIEW",
+        category: ["DEFAULT", "BROWSABLE"],
+        data: [{ mimeType: "application/json" }],
+      },
+      // Receiving one via the system share sheet.
+      {
+        action: "SEND",
+        category: ["DEFAULT"],
+        data: [{ mimeType: "application/json" }],
+      },
+    ],
   },
 
   web: {

@@ -28,6 +28,12 @@ import { ScriptTrack } from "@/components/editor/ScriptTrack";
 import { SegmentCard } from "@/components/editor/SegmentCard";
 import { VisualTrack } from "@/components/editor/VisualTrack";
 import {
+  type ExportResult,
+  shareProjectJson,
+  shareScript,
+  shareTimelineXml,
+} from "@/lib/editor/exports";
+import {
   type PickResult,
   pickAudioFromFiles,
   pickVisualFromFiles,
@@ -68,6 +74,7 @@ export default function EditorScreen() {
   const [isRenamingTitle, setIsRenamingTitle] = useState(false);
   const [actionsFor, setActionsFor] = useState<Segment | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [showProjectMenu, setShowProjectMenu] = useState(false);
 
   const byId = useMemo(() => assetsById(project?.assets ?? []), [project]);
   const resolveUri = useCallback((uri: string) => resolveAssetUri(id, uri), [id]);
@@ -96,6 +103,45 @@ export default function EditorScreen() {
     },
     [addAsset],
   );
+
+  /** Reports anything an export could not do, rather than failing silently. */
+  const runExport = useCallback(async (task: Promise<ExportResult>, label: string) => {
+    const result = await task;
+    if (result.status === "unavailable") {
+      setNotice("Sharing isn't available on this device.");
+    } else if (result.status === "failed") {
+      setNotice(`${label} failed: ${result.error}`);
+    }
+  }, []);
+
+  const projectMenuItems = useMemo((): ActionMenuItem[] => {
+    if (!project) return [];
+
+    return [
+      { label: "Rename project", onPress: () => setIsRenamingTitle(true) },
+      {
+        label: "Export script (.md)",
+        onPress: () => void runExport(shareScript(project), "Script export"),
+      },
+      {
+        label: "Export timeline (FCP7 XML)",
+        onPress: () => {
+          // The XML points at media by absolute path on this device. Saying so up front
+          // beats handing someone a timeline full of offline media.
+          setNotice("The timeline references your media by path — copy the files too.");
+          void runExport(shareTimelineXml(project), "Timeline export");
+        },
+      },
+      {
+        label: "Export project (.json)",
+        onPress: () => void runExport(shareProjectJson(project), "Project export"),
+      },
+      {
+        label: "Render video",
+        onPress: () => setNotice("Rendering isn't wired up yet."),
+      },
+    ];
+  }, [project, runExport]);
 
   const segmentActions = useMemo((): ActionMenuItem[] => {
     if (!actionsFor || !project) return [];
@@ -175,7 +221,12 @@ export default function EditorScreen() {
           </Text>
         </View>
 
-        <Pressable accessibilityLabel="Project menu" accessibilityRole="button" hitSlop={12}>
+        <Pressable
+          accessibilityLabel="Project menu"
+          accessibilityRole="button"
+          hitSlop={12}
+          onPress={() => setShowProjectMenu(true)}
+        >
           <Text style={styles.overflow}>⋯</Text>
         </Pressable>
       </View>
@@ -411,6 +462,13 @@ export default function EditorScreen() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <ActionMenu
+        visible={showProjectMenu}
+        title={project.name}
+        items={projectMenuItems}
+        onDismiss={() => setShowProjectMenu(false)}
+      />
 
       <ActionMenu
         visible={actionsFor !== null}

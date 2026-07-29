@@ -14,8 +14,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ActionMenu, type ActionMenuItem } from "@/components/ActionMenu";
 import { ProjectRow } from "@/components/ProjectRow";
 import { Snackbar } from "@/components/Snackbar";
+import { shareProjectJson } from "@/lib/editor/exports";
 import { markProjectOpened } from "@/lib/storage/prefs";
-import { createProject, duplicateProject, type ProjectSummary } from "@/lib/storage/projects";
+import {
+  createProject,
+  duplicateProject,
+  loadProject,
+  type ProjectSummary,
+} from "@/lib/storage/projects";
+import { useIncomingProjectFile } from "@/lib/storage/useIncomingProjectFile";
 import { UNDO_WINDOW_MS, useProjectList } from "@/lib/storage/useProjectList";
 import { theme } from "@/lib/theme";
 
@@ -35,6 +42,15 @@ export default function DashboardScreen() {
 
   const [query, setQuery] = useState("");
   const [menuFor, setMenuFor] = useState<ProjectSummary | null>(null);
+  const [showOverflow, setShowOverflow] = useState(false);
+
+  const [importError, setImportError] = useState<string | null>(null);
+
+  // A project shared into the app or opened from Files lands straight in the editor.
+  useIncomingProjectFile({
+    onImported: (projectId) => router.push(`/project/${projectId}`),
+    onError: setImportError,
+  });
 
   // Keeps typing responsive without hand-rolling a debounce timer.
   const deferredQuery = useDeferredValue(query);
@@ -65,6 +81,7 @@ export default function DashboardScreen() {
     const target = menuFor;
 
     return [
+      // Renaming is inline in the editor's top bar, so this just takes you there.
       { label: "Rename", onPress: () => void openProject(target.id) },
       {
         label: "Duplicate",
@@ -73,7 +90,13 @@ export default function DashboardScreen() {
           await refresh();
         },
       },
-      { label: "Export project", onPress: () => void openProject(target.id) },
+      {
+        label: "Export project",
+        onPress: async () => {
+          const project = await loadProject(target.id);
+          if (project) await shareProjectJson(project);
+        },
+      },
       { label: "Delete", destructive: true, onPress: () => requestDelete(target) },
     ];
   }, [menuFor, openProject, refresh, requestDelete]);
@@ -82,15 +105,26 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <View style={styles.header}>
         <Text style={styles.wordmark}>{APP_NAME}</Text>
-        <Pressable
-          accessibilityLabel="New project"
-          accessibilityRole="button"
-          hitSlop={12}
-          onPress={onNewProject}
-          style={({ pressed }) => [styles.newButton, pressed && styles.newButtonPressed]}
-        >
-          <Text style={styles.newButtonLabel}>+</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            accessibilityLabel="New project"
+            accessibilityRole="button"
+            hitSlop={12}
+            onPress={onNewProject}
+            style={({ pressed }) => [styles.newButton, pressed && styles.newButtonPressed]}
+          >
+            <Text style={styles.newButtonLabel}>+</Text>
+          </Pressable>
+          <Pressable
+            accessibilityLabel="More"
+            accessibilityRole="button"
+            hitSlop={12}
+            onPress={() => setShowOverflow(true)}
+            style={({ pressed }) => [styles.newButton, pressed && styles.newButtonPressed]}
+          >
+            <Text style={styles.overflowLabel}>⋯</Text>
+          </Pressable>
+        </View>
       </View>
 
       <TextInput
@@ -106,6 +140,7 @@ export default function DashboardScreen() {
       />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {importError ? <Text style={styles.error}>{importError}</Text> : null}
       {broken.length > 0 ? (
         <Text style={styles.warning}>
           {broken.length} project{broken.length === 1 ? "" : "s"} could not be opened.
@@ -153,6 +188,15 @@ export default function DashboardScreen() {
       )}
 
       <ActionMenu
+        visible={showOverflow}
+        items={[
+          { label: "Import project…", onPress: () => router.push("/import") },
+          { label: "Get the agent skill", onPress: () => router.push("/import") },
+        ]}
+        onDismiss={() => setShowOverflow(false)}
+      />
+
+      <ActionMenu
         visible={menuFor !== null}
         title={menuFor?.name}
         items={menuItems}
@@ -181,6 +225,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   wordmark: { color: theme.text, fontSize: 24, fontWeight: "700", letterSpacing: -0.5 },
+  headerActions: { flexDirection: "row", gap: 4 },
+  overflowLabel: { color: theme.text, fontSize: 22, lineHeight: 26 },
   newButton: {
     alignItems: "center",
     borderRadius: 20,
