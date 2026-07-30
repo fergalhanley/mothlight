@@ -7,7 +7,8 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "!**/*.md"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**", "build/**"]
+      "env": ["VERCEL", "VERCEL_ENV", "VERCEL_URL"],
+      "outputs": [".next/**", "!.next/cache/**", ".vercel/output/**", "dist/**", "build/**"]
     },
     "dev": {
       "cache": false,

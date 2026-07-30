@@ -294,3 +294,58 @@ Decisions worth knowing, mostly boring ones:
   ```bash
   docker build -f apps/api/Dockerfile -t mothlight-api .
   ```
+
+---
+
+## Deploying the marketing site
+
+`apps/web` carries the privacy policy and support page that both app stores require on a
+listing, so it has to be live before submission.
+
+### Vercel project settings
+
+The only setting that matters is the root directory. Everything else is auto-detected.
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | **`apps/web`** |
+| Framework Preset | Next.js (auto-detected) |
+| Build / Install / Output | leave as detected — Vercel sees `bun.lock` and `turbo.json` and does the right thing |
+| Environment variables | **none** |
+
+That last row is deliberate. Every page is static and renders with no environment at all;
+the session-refresh proxy and `/auth/callback` both stand down when Supabase is
+unconfigured. Do not add `NEXT_PUBLIC_SUPABASE_*` here — setting them switches on auth
+plumbing that v0 does not use.
+
+Two pieces of config make the monorepo build work and should not be removed:
+
+- `transpilePackages: ["@mothlight/core"]` in `apps/web/next.config.ts`. That package ships
+  raw TypeScript on purpose, so Next has to compile it rather than treat it as prebuilt.
+- `outputFileTracingRoot` pointing at the repo root, so tracing picks up the workspace
+  packages that live above the root directory.
+
+### Domain
+
+Point `mothlight.app` at the project, add `www.mothlight.app` as a redirect to the apex,
+and let Vercel issue the certificate. Then update `SITE_URL` in `apps/web/src/lib/site.ts`
+if the domain ever changes — it is what `metadataBase` and the Open Graph card use.
+
+### Before submitting to a store
+
+- [ ] `https://mothlight.app/privacy` loads
+- [ ] `https://mothlight.app/support` loads
+- [ ] `developer@mothlight.app` receives mail — reviewers do write to it
+- [ ] Re-read `/privacy` against the shipping binary. It states that the app collects
+      nothing and that rendering uploads media. Adding analytics, or dropping server-side
+      render, makes it wrong.
+
+### Verifying locally the way it deploys
+
+```bash
+bun run --cwd apps/web build
+cd apps/web && env -u NEXT_PUBLIC_SUPABASE_URL -u NEXT_PUBLIC_SUPABASE_ANON_KEY bunx next start
+```
+
+Unsetting those variables is the point: it reproduces the production environment and
+catches anything that assumes Supabase is configured.
