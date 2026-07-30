@@ -19,6 +19,7 @@
       "!**/*.tsbuildinfo",
       "!**/next-env.d.ts",
       "!**/expo-env.d.ts",
+      "!**/*.svg",
       "!packages/db/src/database.types.ts"
     ]
   },

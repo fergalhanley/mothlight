@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="up" x1="790.39" y1="0" x2="233.61" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6c56a4"/>
+      <stop offset=".34" stop-color="#6e56a3"/>
+      <stop offset=".56" stop-color="#7756a3"/>
+      <stop offset=".75" stop-color="#8656a3"/>
+      <stop offset=".92" stop-color="#9b57a3"/>
+      <stop offset="1" stop-color="#a958a3"/>
+    </linearGradient>
+    <linearGradient id="down" x1="790.39" y1="0" x2="233.61" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#00a7e9"/>
+      <stop offset="1" stop-color="#8ccda3"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="180" fill="#101827"/>
+  <g transform="translate(512 512) scale(1.28) translate(-512 -419.08)">
+    <polygon points="338.04 611.93 512 310.59 685.96 611.93 790.39 697.47 512 140.69 233.61 697.47 338.04 611.93" fill="url(#up)"/>
+    <polygon points="338.04 226.23 512 527.58 685.96 226.23 790.39 140.69 512 697.47 233.61 140.69 338.04 226.23" fill="url(#down)"/>
+  </g>
+</svg>

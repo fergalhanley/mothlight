@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import mothIcon from "@/app/assets/mothlight-icon.png";
-import { CONTACT_EMAIL, NAV_LINKS, SITE_NAME } from "@/lib/site";
+import visarcIcon from "@/app/assets/visarc-icon.svg";
+import { COMPANY_NAME, COMPANY_URL, CONTACT_EMAIL, NAV_LINKS, SITE_NAME } from "@/lib/site";
 
 /** The wing spectrum as a hairline. Used to separate the header and footer from content. */
 export function SpectrumRule({ className = "" }: { className?: string }) {
@@ -50,12 +51,32 @@ export function SiteFooter() {
   return (
     <footer className="mt-16">
       <SpectrumRule className="opacity-40" />
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6 py-8 text-sm text-faint sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2.5">
-          <Image src={mothIcon} alt="" width={20} height={20} className="h-5 w-5 rounded" />
-          <p>
-            © {new Date().getFullYear()} {SITE_NAME}
-          </p>
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-8 text-sm text-faint sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2.5">
+            <Image src={mothIcon} alt="" width={20} height={20} className="h-5 w-5 rounded" />
+            <p>
+              © {new Date().getFullYear()} {SITE_NAME}
+            </p>
+          </div>
+
+          {/* The brand mark keeps its own gradients rather than being tinted to match. */}
+          <a
+            href={COMPANY_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="group flex w-fit items-center gap-2 transition-colors hover:text-muted"
+          >
+            <span>Made by</span>
+            <Image
+              src={visarcIcon}
+              alt=""
+              width={20}
+              height={20}
+              className="h-5 w-5 rounded opacity-85 transition-opacity group-hover:opacity-100"
+            />
+            <span className="font-medium">{COMPANY_NAME}</span>
+          </a>
         </div>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">

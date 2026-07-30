@@ -11,6 +11,10 @@ export const SITE_URL = `https://${SITE_DOMAIN}`;
 
 export const CONTACT_EMAIL = "developer@mothlight.app";
 
+/** The company behind Mothlight, credited in the footer. */
+export const COMPANY_NAME = "Visarc";
+export const COMPANY_URL = "https://visarc.com.au";
+
 /** Shown on the privacy page and used for "last updated". Bump when the policy changes. */
 export const PRIVACY_EFFECTIVE_DATE = "30 July 2026";
 
