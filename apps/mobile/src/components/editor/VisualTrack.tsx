@@ -47,7 +47,7 @@ export function VisualTrack({
 
       {main === null ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyHint}>This segment needs a visual.</Text>
+          <Text style={styles.emptyHint}>This shot needs a visual.</Text>
           <View style={styles.chooserRow}>
             <ChooserButton label="Photo library" onPress={onPickFromLibrary} />
             <ChooserButton label="Files" onPress={onPickFromFiles} />

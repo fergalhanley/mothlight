@@ -130,7 +130,7 @@ export function toFcp7Xml(project: Project, options: Fcp7Options): string {
 
     return [
       `        <clipitem id="clipitem-v${index + 1}">`,
-      `          <name>${escapeXml(`Segment ${index + 1}`)}</name>`,
+      `          <name>${escapeXml(`Shot ${index + 1}`)}</name>`,
       `          <duration>${durationFrames}</duration>`,
       rateElement(fps, "          "),
       `          <start>${startFrames}</start>`,
@@ -155,7 +155,7 @@ export function toFcp7Xml(project: Project, options: Fcp7Options): string {
 
     return [
       `        <clipitem id="clipitem-a${index + 1}">`,
-      `          <name>${escapeXml(`Segment ${index + 1} VO`)}</name>`,
+      `          <name>${escapeXml(`Shot ${index + 1} VO`)}</name>`,
       `          <duration>${durationFrames}</duration>`,
       rateElement(fps, "          "),
       `          <start>${startFrames}</start>`,

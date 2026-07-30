@@ -129,8 +129,8 @@ describe("preflightRender", () => {
 
     const blockers = preflightRender(project).blockers;
     expect(blockers).toHaveLength(2);
-    expect(blockers[0]?.message).toBe("Segment 2 still needs a visual.");
-    expect(blockers[1]?.message).toBe("Segment 3 still needs a visual.");
+    expect(blockers[0]?.message).toBe("Shot 2 still needs a visual.");
+    expect(blockers[1]?.message).toBe("Shot 3 still needs a visual.");
   });
 
   test("warns past the soft cap but does not block", () => {

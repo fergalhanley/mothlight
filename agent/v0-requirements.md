@@ -20,7 +20,7 @@ eligible Shipaton store this year.
 | Canvas | Fixed **1080×1920, 30fps, H.264/AAC, MP4** | One aspect ratio to design and render for. Others are v0.2. |
 | Max length | Soft cap **90s**, hard cap 180s | Keeps render times and memory sane. |
 | Render | **Server-side, confirmed** (§7), with a Wednesday fallback gate | On-device FFmpeg in RN is a maintenance hazard in 2026. |
-| Segment model | Timeline is an ordered list of **segments**; everything is scoped to a segment except the soundtrack | Matches the mental model of a scripted short. |
+| Shot model | Timeline is an ordered list of **shots**; everything is scoped to a shot except the soundtrack | Matches the mental model of a scripted short. |
 
 ---
 
@@ -28,6 +28,10 @@ eligible Shipaton store this year.
 
 This is the **import/export format** and the target for the agent script-writing skill.
 Version it from day one. Validate with zod on import; reject with a readable error.
+
+**Wire compatibility:** the user-facing term is **shot** everywhere. The schema retains the
+legacy `segments` array key in v0.1 so existing project files continue to import; it is an
+implementation detail and must not appear as product copy.
 
 ```jsonc
 {
@@ -61,7 +65,7 @@ Version it from day one. Validate with zod on import; reject with a readable err
       "durationMode": "auto",     // auto | manual
       "durationMs": 4200,         // computed when auto, authoritative when manual
       "script": "Moths don't love light. They're lost.",
-      "captionsEnabled": true,    // per-segment override of captionStyle.enabled
+      "captionsEnabled": true,    // per-shot override of captionStyle.enabled
 
       "visual": {
         "main": {
@@ -84,7 +88,7 @@ Version it from day one. Validate with zod on import; reject with a readable err
             "rotation": 0,
             "style": { "font": "Inter-Bold", "sizePt": 64, "color": "#FFCC00" },
             "startMs": 0,
-            "endMs": null         // null = to end of segment
+            "endMs": null         // null = to end of shot
           }
         ],
         "effects": []             // reserved — not rendered in v0
@@ -116,7 +120,7 @@ Version it from day one. Validate with zod on import; reject with a readable err
 Manual mode: user-set, but never shorter than the VO.
 
 **Import behaviour:** a `.json` with no `assets` (i.e. an agent-generated script) is valid.
-Segments then have `script` + empty visuals, and the editor shows them as "needs a visual"
+Shots then have `script` + empty visuals, and the editor shows them as "needs a visual"
 placeholders. **This is the intended agent workflow** — the agent writes structure and words;
 the human adds pictures.
 
@@ -127,15 +131,15 @@ the human adds pictures.
 ### 2.1 Splash / load
 - Brand mark, single accent animation, ≤1.2s perceived.
 - Warms local DB, migrates schema if needed, seeds the demo project on **first launch only**.
-- **Seed a real demo project** ("Mothlight — 30 second tour"): 4 segments, bundled images,
+- **Seed a real demo project** ("Mothlight — 30 second tour"): 4 shots, bundled images,
   bundled VO, bundled music, captions on. This is the single highest-value item in v0 —
   it's what the App Review tester opens, and what a new user learns from.
 
 ### 2.2 Dashboard
 - Header: wordmark left, `+` (new project) right.
 - Search field: filters by project name and script content, debounced, case-insensitive.
-- List: newest-**last-opened** first. Each row: 9:16 thumbnail (first segment's visual or
-  placeholder), name, duration, segment count, relative modified time.
+- List: newest-**last-opened** first. Each row: 9:16 thumbnail (first shot's visual or
+  placeholder), name, duration, shot count, relative modified time.
 - Tap row → editor.
 - **Swipe to dismiss → optimistic delete + snackbar** ("Project deleted — UNDO"), Material
   convention, used on both platforms. Row animates out immediately; keep the record in memory
@@ -150,7 +154,7 @@ the human adds pictures.
 - Entry points: dashboard overflow → Import; **OS share sheet** (register `.json` /
   `public.json` as an accepted document type); **file open** from Files app.
 - Validate against schema → on success, create project and open it; on failure, show a
-  non-scary error naming the first problem ("Segment 3 has no `script` or `visual`").
+  non-scary error naming the first problem ("Shot 3 has no `script` or `visual`").
 - Include a **"Get the agent skill"** screen: a short explanation + a copyable prompt/schema
   block + a link to the docs page on the marketing site. Zero build cost, big differentiator.
 
@@ -162,40 +166,40 @@ Layout, top to bottom:
 ┌─────────────────────────────────────┐
 │ ‹   Moths chase light   0:42 · 6 ⋯  │  top bar
 ├─────────────────────────────────────┤
-│                                     │
-│         9:16 PREVIEW CANVAS         │  ~42% height, tap to play/pause
-│                                     │
-│  ▶ ──────●───────────────  0:12     │  scrubber
+│ [ ▶ Preview ]       [ 🚀 Render ]   │  primary actions
 ├─────────────────────────────────────┤
 │ ♪ Soundtrack: Dust Motes      ⌄     │  project-level row
 ├─────────────────────────────────────┤
-│ ┌─ SEGMENT 1 ──────────── 4.2s ─┐   │
-│ │ [thumb] "Moths don't love…"   │   │  collapsed segment card
+│ ┌─ SHOT 1 ─────────────── 4.2s ─┐   │
+│ │ [thumb] "Moths don't love…"   │   │  collapsed shot card
 │ │ 🎙 ✓  💬 ✓                     │   │
 │ └───────────────────────────────┘   │  vertical scroll
-│ ┌─ SEGMENT 2 ──────────── 3.0s ─┐   │
+│ ┌─ SHOT 2 ─────────────── 3.0s ─┐   │
 │ │ …                             │   │
 │ └───────────────────────────────┘   │
 │                                     │
-│         [ + Add segment ]           │
+│         [ + Add shot ]           │
 └─────────────────────────────────────┘
 ```
 
 **Top bar:** back (‹) → dashboard (autosaves first); centre shows project name (tap to
-rename inline) with total duration + segment count beneath; right is the ⋯ overflow menu.
+rename inline) with total duration + shot count beneath; right is the ⋯ overflow menu.
 
-**Tapping a segment card** expands it **inline, as an accordion** (decided — not a pushed
-full-screen editor), revealing three collapsible tracks. Only one segment is expanded at a
-time; expanding another collapses the previous. Expanding scrolls the segment to just below
-the preview and seeks playback to that segment's start, so the canvas always shows what
-you're editing. Overlay positioning is done by dragging directly on the preview canvas above,
-which is why the accordion works — the canvas stays visible.
+**Tapping a shot card** expands it **inline, as an accordion** (decided — not a pushed
+full-screen editor), revealing three collapsible tracks. Only one shot is expanded at a
+time; expanding another collapses the previous and seeks playback to that shot's start.
+
+**Preview:** Preview opens a full-screen player with working play/pause and scrubbing.
+The user may switch it to a draggable, free-floating player above the editor so changes and
+playback can be checked together without permanently consuming editor space. Render sits
+immediately to the right of Preview and uses a rocket icon. Video shots show moving frames,
+and soundtrack + voiceover are driven from the same clock.
 
 **Track: Script**
 - Multiline text input, autogrows.
 - 🎙 button → OS dictation (`expo-speech-recognition` or the native keyboard dictation key —
   keyboard dictation is free and needs no permission plumbing; prefer it for v0).
-- Captions toggle (per segment), with style inherited from project.
+- Captions toggle (per shot), with style inherited from project.
 
 **Track: Visual**
 - *Main* row: thumbnail + "Choose image or video" → photo library / Files / solid colour.
@@ -212,11 +216,11 @@ which is why the accordion works — the canvas stays visible.
 - *Voiceover* row: Record (hold-to-record or tap-start/tap-stop, waveform while recording),
   playback, re-record, delete, gain slider. Or import an audio file.
 - *SFX* row: **not shown in v0.**
-- Background music is **project-level** (the row above the segment list), not per-segment.
-  This deviates from the original spec deliberately: per-segment background music is not a
-  thing users want, and it complicates crossfades. Per-segment override is v0.2 if anyone asks.
+- Background music is **project-level** (the row above the shot list), not per-shot.
+  This deviates from the original spec deliberately: per-shot background music is not a
+  thing users want, and it complicates crossfades. Per-shot override is v0.2 if anyone asks.
 
-**Segment actions** (long-press card or ⋯ on the card): Move up, Move down, Duplicate, Delete.
+**Shot actions** (long-press card or ⋯ on the card): Move up, Move down, Duplicate, Delete.
 Drag-to-reorder is v0.1 — move up/down is 20 minutes of work and covers the need.
 
 **Preview playback:** real-time composition play in-app — layered `expo-video`/`Image` +
@@ -225,7 +229,7 @@ be frame-perfect; it needs to be honest about order, timing, and content.
 
 ### 2.5 Overflow menu (editor)
 - Rename project
-- Export script (`.md` — segment headings + script text, via OS share sheet)
+- Export script (`.md` — shot headings + script text, via OS share sheet)
 - Export timeline (**FCP7 XML**, via OS share sheet — see §8, candidate cut)
 - Export project (`.json` — the schema above, media referenced not embedded)
 - **Render video** → §7
@@ -269,7 +273,7 @@ Request **in context, at point of use** — never a permission wall on launch.
 
 - Autosave on every mutation, debounced 500ms. No "Save" button anywhere.
 - Write to a temp file then atomically rename — never leave a half-written project.json.
-- Restore last editor state on relaunch (which project, which segment expanded).
+- Restore last editor state on relaunch (which project, which shot expanded).
 - Schema migration hook in place (even though there's nothing to migrate yet).
 
 ---
@@ -277,7 +281,7 @@ Request **in context, at point of use** — never a permission wall on launch.
 ## 6. Instrumentation (in v0 — the growth graph starts at launch)
 
 - **Analytics** (PostHog or Mixpanel): app_open, project_created, project_imported,
-  segment_added, visual_added, vo_recorded, captions_enabled, render_started,
+  shot_added, visual_added, vo_recorded, captions_enabled, render_started,
   render_completed, render_failed, export_xml, export_script, share_completed.
 - **Crash reporting** (Sentry) with source maps.
 - **EAS Update** configured with a `production` channel — JS-only fixes ship without review,
@@ -330,9 +334,9 @@ Save to Photos, then offer the OS share sheet immediately.
 | Drawing markup | **Cut to v0.1.** Text overlays cover 80% of the need at 20% of the cost. Gesture canvas + undo + serialisation is a day you don't have. |
 | FCP7 XML export | **Keep if Wednesday looks good, else v0.1.** Note the media-path problem: XML references files by path, so export must either write a folder alongside the XML or document that the user copies media manually. Test the output actually opens in Resolve before shipping it. |
 | Video/audio "effects" sub-tracks | **Cut.** Keep the schema fields, don't render the UI. Disabled/"coming soon" rows read as incomplete to reviewers. |
-| Drag-to-reorder segments | Cut — move up/down instead. |
+| Drag-to-reorder shots | Cut — move up/down instead. |
 | Undo/redo | Cut. Destructive actions get confirmations instead. |
-| Per-segment background music | Cut — project-level soundtrack only. |
+| Per-shot background music | Cut — project-level soundtrack only. |
 | Voice-to-text in-app | Use the **keyboard dictation key** (free, no permission, no library). Custom speech recognition is v0.1. |
 
 ---
@@ -355,9 +359,11 @@ Save to Photos, then offer the OS share sheet immediately.
       package installed from different stores can't cross-update. Expected, not a bug.
 - [ ] Apple Developer membership active; App Store Connect app record created; universal
       (iPhone + iPad) device family on the single bundle ID
-- [ ] **Privacy policy URL live** (Next.js marketing site — this is a Friday dependency, not a
-      nice-to-have) + support URL + marketing URL
-- [ ] Privacy nutrition label / Play Data Safety form (v0 collects: analytics + crash only;
+- [x] **Privacy policy + support + marketing pages built** (`apps/web`: `/`, `/privacy`,
+      `/support`, `/agent`). All static, verified serving with no environment set.
+      **Still to do: deploy them and point mothlight.app at it** — the URLs are what the
+      listings need, and an unbuilt page and an undeployed one block equally.
+- [ ] Privacy nutrition label / Play Data Safety form (per decision 10 v0 collects NOTHING;
       media never leaves the device unless path A render is enabled — if it is, disclose it)
 - [ ] Age rating questionnaire (4+ / Everyone is achievable for v0 with no UGC sharing)
 - [ ] App icon 1024×1024, no alpha
@@ -377,8 +383,8 @@ Save to Photos, then offer the OS share sheet immediately.
 A person who has never seen the app can, in under five minutes, on a phone, with no account:
 
 1. Open it, see a demo project, and understand what the app is.
-2. Create a new project, add three segments, write a line of script into each.
-3. Add a photo to each segment and record a voiceover for one.
+2. Create a new project, add three shots, write a line of script into each.
+3. Add a photo to each shot and record a voiceover for one.
 4. Turn on captions, pick a soundtrack.
 5. Play it back and see something that looks like a short-form video.
 6. Render it, find it in their camera roll, and post it to TikTok from there.
@@ -393,13 +399,17 @@ If any of those six break, that's the bug queue. Everything else is v0.1.
 |---|---|---|---|
 | 1 | Render path | **A — server-side.** Wednesday EOD gate; fall back to §7C if no end-to-end MP4 by then. Android native render (Media3) becomes a v0.1/v0.2 target. | 28 Jul |
 | 2 | Delete interaction | **Android convention** — swipe-to-dismiss + optimistic delete + UNDO snackbar, on both platforms. No confirm dialog. | 28 Jul |
-| 3 | Segment expansion | **Inline accordion**, one open at a time, preview canvas stays visible above. | 28 Jul |
+| 3 | Shot expansion | **Inline accordion**, one open at a time; preview is full-screen or a draggable floating player. | 29 Jul |
 | 4 | Identity | `mothlight.app` acquired → **`app.mothlight`**, one universal ID across iPhone, iPad, Play, and Samsung. No separate iPad ID. | 28 Jul |
 | 5 | Bundled music | **ElevenLabs-generated**, 3–5 beds, supplied during dev. Commercial + redistribution rights to be confirmed and recorded in-repo. User-generated music deferred to v1. | 28 Jul |
 | 6 | Store targets | **Google Play + Samsung Galaxy Store + App Store.** Android is the design reference; Samsung is the fastest path to a live in-window release. | 28 Jul |
 | 7 | Render service host | **Container on Fly or Railway.** No 15-minute timeout, job queue in-process, predictable cost, and standable-up in a day — which the Wednesday gate requires. Lambda's IAM/layer/bucket setup is time this week does not have. | 28 Jul |
 | 8 | No database on device | **Files only** — `project.json` per project directory, no SQLite/MMKV. Search has to read script text anyway, and a separate index is one more thing that can disagree with the truth on disk. The repository module is the seam if project counts ever justify it. | 28 Jul |
-| 9 | Segment caption override | **Tri-state**, not boolean: `captionsEnabled: true \| false \| null`, where null inherits `captionStyle.enabled`. A plain boolean cannot express "the agent omitted this", which the import path needs. | 28 Jul |
+| 9 | Shot caption override | **Tri-state**, not boolean: `captionsEnabled: true \| false \| null`, where null inherits `captionStyle.enabled`. A plain boolean cannot express "the agent omitted this", which the import path needs. | 28 Jul |
+
+| 10 | Analytics in v0 | **None.** No product analytics and no crash reporting in the first release, so the privacy policy and Data Safety form can both say "we collect nothing" — which is faster to fill in, impossible to get wrong, and true. §6's growth graph starts at v0.1. | 30 Jul |
+| 11 | Contact address | **developer@mothlight.app** — on the privacy page, the support page, and both store listings. Must receive mail before submission; reviewers do write to it. | 30 Jul |
+| 12 | Marketing site positioning | Describes v0 **as built: an editor, not a generator.** The site says plainly that there is no AI image or video generation. Promising generation the binary cannot do is both untrue and a misleading-metadata review risk. The agent-authored script import is the differentiator, and it is real. | 30 Jul |
 
 ### Still open
 

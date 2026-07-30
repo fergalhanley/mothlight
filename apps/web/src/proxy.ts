@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from "@mothlight/db/server";
 import { type NextRequest, NextResponse } from "next/server";
-import { supabaseAnonKey, supabaseUrl } from "@/lib/env";
+import { isSupabaseConfigured, supabaseAnonKey, supabaseUrl } from "@/lib/env";
 
 /**
  * Next.js 16 renamed Middleware to Proxy; the behaviour is unchanged.
@@ -8,8 +8,14 @@ import { supabaseAnonKey, supabaseUrl } from "@/lib/env";
  * Its only job here is to refresh the Supabase session on each request so that
  * server components always observe a valid access token. Do not put authorization
  * logic in this file — do that check in the page or route handler itself.
+ *
+ * v0 deploys with no Supabase environment, and this runs on every request — so it stands
+ * down when unconfigured. Without that guard it threw on every page, which took the whole
+ * marketing site down, privacy policy included.
  */
 export async function proxy(request: NextRequest) {
+  if (!isSupabaseConfigured()) return NextResponse.next({ request });
+
   // Must be mutated (not recreated) so refreshed auth cookies survive.
   let response = NextResponse.next({ request });
 

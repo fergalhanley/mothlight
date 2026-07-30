@@ -55,6 +55,7 @@ const config: ExpoConfig = {
 
   android: {
     package: BUNDLE_IDENTIFIER,
+    permissions: ["android.permission.RECORD_AUDIO"],
     adaptiveIcon: {
       backgroundColor: "#0a0a0a",
       foregroundImage: "./assets/android-icon-foreground.png",

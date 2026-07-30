@@ -54,3 +54,4 @@ bun-debug.log*
 
 # Test / coverage
 coverage/
+agent/feedback-1.md

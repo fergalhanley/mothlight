@@ -84,7 +84,7 @@ describe("import-only rules", () => {
     const result = parseProjectForImport({ ...AGENT_SCRIPT, segments: [] });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error).toContain("no segments");
+    expect(result.error).toContain("no shots");
   });
 
   test("names the offending segment when it has neither script nor visual", () => {
@@ -94,7 +94,7 @@ describe("import-only rules", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error).toBe("Segment 3 has no script or visual.");
+    expect(result.error).toBe("Shot 3 has no script or visual.");
   });
 
   test("an empty segment is fine when loading, but not when importing", () => {
@@ -112,7 +112,7 @@ describe("readable validation errors", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error).toContain("Segment 2");
+    expect(result.error).toContain("Shot 2");
     expect(result.error).not.toContain("segments.1");
   });
 
@@ -123,7 +123,7 @@ describe("readable validation errors", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error).toContain("Segment 1");
+    expect(result.error).toContain("Shot 1");
     expect(result.error).toContain("is required");
   });
 

@@ -1,8 +1,9 @@
+import { AGENT_NOTES, AGENT_PROMPT } from "@mothlight/core";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AGENT_NOTES, AGENT_PROMPT } from "@/lib/agentPrompt";
+
 import { pickAndImportProject } from "@/lib/storage/importFile";
 import { markProjectOpened } from "@/lib/storage/prefs";
 import { theme } from "@/lib/theme";

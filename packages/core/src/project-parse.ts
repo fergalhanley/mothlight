@@ -5,7 +5,7 @@ import { PROJECT_SCHEMA_VERSION, type Project, projectSchema } from "./project";
  * Parsing and validation for `project.json`.
  *
  * Import errors are surfaced one at a time, in plain language, naming the segment the
- * user can actually see ("Segment 3 …", not "segments.2.visual.main.assetId"). A wall of
+ * user can actually see ("Shot 3 …", not "segments.2.visual.main.assetId"). A wall of
  * zod issues is worse than useless to someone who just tried to open a file.
  */
 
@@ -21,7 +21,7 @@ function describePath(path: ReadonlyArray<PropertyKey>): string {
 
   // segments[2].visual.main.assetId  ->  Segment 3 → visual.main.assetId
   if ((head === "segments" || head === "assets") && typeof index === "number") {
-    const label = head === "segments" ? "Segment" : "Asset";
+    const label = head === "segments" ? "Shot" : "Asset";
     const tail = rest.join(".");
     const subject = `${label} ${index + 1}`;
     return tail ? `${subject} → ${tail}` : subject;
@@ -33,8 +33,8 @@ function describePath(path: ReadonlyArray<PropertyKey>): string {
 /**
  * Joins path and message so both zod's own wording and our continuation-style custom
  * messages read as sentences:
- *   "Segment 3 → script: Invalid input: expected string, received number"
- *   "Segment 3 → visual.main.assetId is required when the visual type is \"image\""
+ *   "Shot 3 → script: Invalid input: expected string, received number"
+ *   "Shot 3 → visual.main.assetId is required when the visual type is \"image\""
  */
 function joinPathAndMessage(pathLabel: string, message: string): string {
   return /^[a-z]/.test(message) ? `${pathLabel} ${message}` : `${pathLabel}: ${message}`;
@@ -111,9 +111,9 @@ function checkReferences(project: Project): string | null {
   }
 
   for (const [index, segment] of project.segments.entries()) {
-    const label = `Segment ${index + 1}`;
+    const label = `Shot ${index + 1}`;
 
-    if (seenSegmentIds.has(segment.id)) return `Two segments share the id "${segment.id}".`;
+    if (seenSegmentIds.has(segment.id)) return `Two shots share the id "${segment.id}".`;
     seenSegmentIds.add(segment.id);
 
     const main = segment.visual.main;
@@ -147,7 +147,7 @@ function checkReferences(project: Project): string | null {
 /**
  * Parses a project as stored by the app. Lenient: missing fields take their defaults, and
  * an empty segment is fine because that is what the editor creates when you tap
- * "Add segment".
+ * "Add shot".
  */
 export function parseProject(input: unknown): ProjectParseResult {
   const versionProblem = checkSchemaVersion(input);
@@ -177,14 +177,14 @@ export function parseProjectForImport(input: unknown): ProjectParseResult {
   const { project } = result;
 
   if (project.segments.length === 0) {
-    return { ok: false, error: "This project has no segments." };
+    return { ok: false, error: "This project has no shots." };
   }
 
   for (const [index, segment] of project.segments.entries()) {
     const hasScript = segment.script.trim().length > 0;
     const hasVisual = segment.visual.main !== null;
     if (!hasScript && !hasVisual) {
-      return { ok: false, error: `Segment ${index + 1} has no script or visual.` };
+      return { ok: false, error: `Shot ${index + 1} has no script or visual.` };
     }
   }
 

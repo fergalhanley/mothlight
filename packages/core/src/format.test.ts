@@ -40,9 +40,9 @@ describe("formatRelativeTime", () => {
 
 describe("formatSegmentCount", () => {
   test.each([
-    [0, "0 segments"],
-    [1, "1 segment"],
-    [6, "6 segments"],
+    [0, "0 shots"],
+    [1, "1 shot"],
+    [6, "6 shots"],
   ])("renders %i as %s", (count, expected) => {
     expect(formatSegmentCount(count)).toBe(expected);
   });

@@ -23,7 +23,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ActionMenu, type ActionMenuItem } from "@/components/ActionMenu";
 import { AudioTrack } from "@/components/editor/AudioTrack";
-import { PreviewCanvas } from "@/components/editor/PreviewCanvas";
+import { PreviewPlayer } from "@/components/editor/PreviewPlayer";
 import { ScriptTrack } from "@/components/editor/ScriptTrack";
 import { SegmentCard } from "@/components/editor/SegmentCard";
 import { VisualTrack } from "@/components/editor/VisualTrack";
@@ -75,6 +75,8 @@ export default function EditorScreen() {
   const [actionsFor, setActionsFor] = useState<Segment | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showProjectMenu, setShowProjectMenu] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"closed" | "fullscreen" | "floating">("closed");
+  const [showSoundtrackMenu, setShowSoundtrackMenu] = useState(false);
 
   const byId = useMemo(() => assetsById(project?.assets ?? []), [project]);
   const resolveUri = useCallback((uri: string) => resolveAssetUri(id, uri), [id]);
@@ -152,7 +154,7 @@ export default function EditorScreen() {
     }
     items.push({ label: "Duplicate", onPress: () => duplicateSegment(target.id) });
     items.push({
-      label: "Delete segment",
+      label: "Delete shot",
       destructive: true,
       onPress: () => deleteSegment(target.id),
     });
@@ -228,11 +230,40 @@ export default function EditorScreen() {
         </Pressable>
       </View>
 
-      <PreviewCanvas project={project} playback={playback} resolveUri={resolveUri} />
+      <View style={styles.primaryActions}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setPreviewMode("fullscreen")}
+          style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.actionIcon}>▶</Text>
+          <Text style={styles.actionLabel}>Preview</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push(`/render/${project.id}`)}
+          style={({ pressed }) => [
+            styles.actionButton,
+            styles.renderButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.actionIcon}>🚀</Text>
+          <Text style={styles.actionLabel}>Render</Text>
+        </Pressable>
+      </View>
 
-      <Pressable style={styles.soundtrackRow}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setShowSoundtrackMenu(true)}
+        style={styles.soundtrackRow}
+      >
         <Text style={styles.soundtrackLabel}>
-          ♪ Soundtrack: {project.soundtrack.assetId ? "Selected" : "None"}
+          ♪ Soundtrack:{" "}
+          {project.soundtrack.assetId
+            ? (project.assets.find((asset) => asset.id === project.soundtrack.assetId)
+                ?.originalFilename ?? "Selected")
+            : "None"}
         </Text>
         <Text style={styles.soundtrackChevron}>⌄</Text>
       </Pressable>
@@ -260,8 +291,7 @@ export default function EditorScreen() {
                 isExpanded={isExpanded}
                 onToggle={() => {
                   setExpandedSegmentId(isExpanded ? null : segment.id);
-                  // Expanding seeks the canvas to that segment, so you always see
-                  // what you are editing (§2.4).
+                  // Expanding seeks the preview to that shot.
                   if (!isExpanded) playback.seekToSegment(segment.id);
                 }}
                 onShowActions={() => setActionsFor(segment)}
@@ -455,7 +485,7 @@ export default function EditorScreen() {
             onPress={addSegment}
             style={({ pressed }) => [styles.addSegment, pressed && styles.pressed]}
           >
-            <Text style={styles.addSegmentLabel}>+ Add segment</Text>
+            <Text style={styles.addSegmentLabel}>+ Add shot</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -468,14 +498,62 @@ export default function EditorScreen() {
       />
 
       <ActionMenu
+        visible={showSoundtrackMenu}
+        title="Soundtrack"
+        items={[
+          {
+            label: "Choose audio file…",
+            onPress: () =>
+              void pickAudioFromFiles(id).then((result) =>
+                applyPick(result, (assetId) =>
+                  update((current) => ({
+                    ...current,
+                    soundtrack: { ...current.soundtrack, assetId },
+                  })),
+                ),
+              ),
+          },
+          ...(project.soundtrack.assetId
+            ? [
+                {
+                  label: "Remove soundtrack",
+                  destructive: true,
+                  onPress: () => {
+                    const assetId = project.soundtrack.assetId;
+                    update((current) => ({
+                      ...current,
+                      soundtrack: { ...current.soundtrack, assetId: null },
+                    }));
+                    if (assetId) removeAsset(assetId);
+                  },
+                },
+              ]
+            : []),
+        ]}
+        onDismiss={() => setShowSoundtrackMenu(false)}
+      />
+
+      <ActionMenu
         visible={actionsFor !== null}
         title={
           actionsFor
-            ? `Segment ${project.segments.findIndex((s) => s.id === actionsFor.id) + 1}`
+            ? `Shot ${project.segments.findIndex((s) => s.id === actionsFor.id) + 1}`
             : undefined
         }
         items={segmentActions}
         onDismiss={() => setActionsFor(null)}
+      />
+
+      <PreviewPlayer
+        project={project}
+        playback={playback}
+        resolveUri={resolveUri}
+        mode={previewMode}
+        onSetMode={setPreviewMode}
+        onClose={() => {
+          playback.pause();
+          setPreviewMode("closed");
+        }}
       />
     </SafeAreaView>
   );
@@ -500,18 +578,27 @@ const styles = StyleSheet.create({
   },
   subtitle: { color: theme.textMuted, fontSize: 12, marginTop: 2 },
   overflow: { color: theme.text, fontSize: 22, textAlign: "right", width: 32 },
-  previewPlaceholder: {
+  primaryActions: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  actionButton: {
     alignItems: "center",
-    alignSelf: "center",
-    aspectRatio: 9 / 16,
     backgroundColor: theme.surface,
     borderColor: theme.border,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
+    flex: 1,
+    flexDirection: "row",
+    gap: 8,
     justifyContent: "center",
-    maxHeight: 260,
+    paddingVertical: 10,
   },
-  previewHint: { color: theme.textMuted, fontSize: 13 },
+  renderButton: { borderColor: theme.accent },
+  actionIcon: { color: theme.text, fontSize: 15 },
+  actionLabel: { color: theme.text, fontSize: 14, fontWeight: "600" },
   soundtrackRow: {
     alignItems: "center",
     borderBottomColor: theme.border,
@@ -520,7 +607,6 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },

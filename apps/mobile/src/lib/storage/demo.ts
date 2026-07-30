@@ -43,7 +43,7 @@ const DEMO_SEGMENTS: DemoSegment[] = [
     overlay: "Mothlight",
   },
   {
-    script: "Every video is a list of segments. Each one gets a picture and a line.",
+    script: "Every video is a list of shots. Each one gets a picture and a line.",
     color: "#2B1B3B",
   },
   {

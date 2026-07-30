@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -13,6 +14,13 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
+
+  // v0 has no auth, so this deployment carries no Supabase environment. Answer 404 rather
+  // than throwing — an unconfigured callback is a route that does not exist, not a fault.
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const code = searchParams.get("code");
   const next = safeRedirectPath(searchParams.get("next"));
 

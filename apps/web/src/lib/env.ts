@@ -28,3 +28,15 @@ export function supabaseAnonKey(): string {
 export function siteUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 }
+
+/**
+ * Whether this deployment has Supabase configured at all.
+ *
+ * v0 is a marketing site with no auth, so it deploys with no Supabase environment. The
+ * session-refresh proxy and the OAuth callback both have to notice that and stand down —
+ * without this check they throw on every request and take the whole site down with them,
+ * including the privacy policy the app stores require.
+ */
+export function isSupabaseConfigured(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}

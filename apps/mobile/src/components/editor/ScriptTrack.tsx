@@ -30,7 +30,7 @@ export function ScriptTrack({
         style={styles.input}
         value={segment.script}
         onChangeText={onChangeScript}
-        placeholder="What is said in this segment?"
+        placeholder="What is said in this shot?"
         placeholderTextColor={theme.textMuted}
         multiline
         textAlignVertical="top"
@@ -42,7 +42,7 @@ export function ScriptTrack({
           <Text style={styles.captionHint}>
             {segment.captionsEnabled === null
               ? "Following the project setting"
-              : "Set for this segment"}
+              : "Set for this shot"}
           </Text>
         </View>
 

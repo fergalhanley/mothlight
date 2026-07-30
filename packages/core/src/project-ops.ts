@@ -95,7 +95,7 @@ export function formatDurationMs(ms: number): string {
 
 // --- Constructors ---------------------------------------------------------------------
 
-/** A blank segment, as created by "Add segment". Valid, but has neither words nor a picture. */
+/** A blank shot, as created by "Add shot". Valid, but has neither words nor a picture. */
 export function createEmptySegment(): Segment {
   return segmentSchema.parse({ id: createId("seg") });
 }

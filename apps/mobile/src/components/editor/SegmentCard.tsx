@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "@/lib/theme";
 
 /**
- * One segment, collapsed to a summary row or expanded into its three tracks.
+ * One shot, collapsed to a summary row or expanded into its three tracks.
  *
  * Expansion is an inline accordion rather than a pushed screen (decision 3): overlay
  * positioning happens by dragging on the preview canvas above, so the canvas has to stay
@@ -42,7 +42,7 @@ export function SegmentCard({
   return (
     <View style={[styles.card, isExpanded && styles.cardExpanded]}>
       <Pressable
-        accessibilityLabel={`Segment ${index + 1}`}
+        accessibilityLabel={`Shot ${index + 1}`}
         accessibilityRole="button"
         accessibilityState={{ expanded: isExpanded }}
         onPress={onToggle}
@@ -53,7 +53,7 @@ export function SegmentCard({
 
         <View style={styles.summary}>
           <View style={styles.summaryTop}>
-            <Text style={styles.index}>SEGMENT {index + 1}</Text>
+            <Text style={styles.index}>SHOT {index + 1}</Text>
             <Text style={styles.duration}>{formatDurationMs(durationMs)}</Text>
           </View>
 
@@ -69,7 +69,7 @@ export function SegmentCard({
         </View>
 
         <Pressable
-          accessibilityLabel={`Segment ${index + 1} actions`}
+          accessibilityLabel={`Shot ${index + 1} actions`}
           accessibilityRole="button"
           hitSlop={10}
           onPress={onShowActions}

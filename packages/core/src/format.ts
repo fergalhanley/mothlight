@@ -40,7 +40,7 @@ export function formatRelativeTime(iso: string, now: Date = new Date()): string 
   return new Date(iso).toLocaleDateString();
 }
 
-/** "6 segments", "1 segment". */
+/** "6 shots", "1 shot". The function name is retained for API compatibility. */
 export function formatSegmentCount(count: number): string {
-  return `${count} segment${count === 1 ? "" : "s"}`;
+  return `${count} shot${count === 1 ? "" : "s"}`;
 }

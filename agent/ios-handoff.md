@@ -80,7 +80,7 @@ regenerates that.
 | Import/export, render, instrumentation, store prep | **Not started** |
 
 On Android, the app builds, launches, and the dashboard renders correctly with the seeded
-demo showing `0:20 · 4 segments · just now`. That proved the storage → schema → formatting
+demo showing `0:20 · 4 shots · just now`. That proved the storage → schema → formatting
 chain works. **Nothing past first render has ever been exercised on any platform**, because
 the Android emulator's `system_server` ANR'd and then crashed under host load.
 
@@ -92,9 +92,9 @@ Priority order. P0 items are code paths no human or machine has ever run.
 
 ### P0 — core flows, never executed
 
-1. **Editor accordion.** Tap a segment card — it expands inline, and expanding a second
-   collapses the first. Expanding should seek the preview to that segment's start.
-2. **Script + autosave.** Type into a segment's script. Navigate back to the dashboard.
+1. **Editor accordion.** Tap a shot card — it expands inline, and expanding a second
+   collapses the first. Expanding should seek the preview to that shot's start.
+2. **Script + autosave.** Type into a shot's script. Navigate back to the dashboard.
    Reopen. The text must still be there. There is **no Save button anywhere** — autosave is
    debounced 500ms and flushed on back-navigation and on backgrounding. This is the single
    highest-consequence path in the app.
@@ -106,9 +106,9 @@ Priority order. P0 items are code paths no human or machine has ever run.
    Pick a large HEIC. It should be copied into the project sandbox, downscaled to 2160px on
    the long edge, and re-encoded to JPEG. Confirm the file lands in
    `Documents/projects/<id>/assets/` and the thumbnail renders.
-5. **Voiceover recording.** Record in a segment. Permission string must read:
+5. **Voiceover recording.** Record in a shot. Permission string must read:
    *"Mothlight uses the microphone to record voiceovers for your videos."* Stop, then play
-   back. Then check the segment's duration updated — auto mode stretches to fit the VO.
+   back. Then check the shot's duration updated — auto mode stretches to fit the VO.
    `expo-audio`'s recorder API is the piece I had least confidence in; watch it closely.
 6. **Preview playback.** Tap the canvas. Captions should appear and advance through the
    script; overlays should appear at their positions. It does not need to be frame-perfect
@@ -119,14 +119,14 @@ Priority order. P0 items are code paths no human or machine has ever run.
    must commit rather than resurrect on relaunch.
 8. **Demo seeding is once-only.** Delete the demo. You should reach the empty state.
    Relaunch. It must **not** come back.
-9. **Segment actions.** Move up/down, duplicate, delete. Duplicating should give the copy
+9. **Shot actions.** Move up/down, duplicate, delete. Duplicating should give the copy
    new overlay ids but share the same asset files.
 
 ### P1 — iOS specifics
 
 10. **Safe areas** on a notched/Dynamic Island device — top bar and the bottom of the
-    segment list.
-11. **Keyboard avoidance** in the editor while typing a script in the last segment.
+    shot list.
+11. **Keyboard avoidance** in the editor while typing a script in the last shot.
 12. **Files app import** as a visual source (the non-photo-library path).
 13. **Permission strings** actually present in the generated Info.plist, and no *extra*
     permissions declared that we do not use — `expo-image-picker` is configured with camera
@@ -198,7 +198,7 @@ bun install
 bun run --cwd apps/render smoke
 ```
 
-It renders a two-segment colour-and-captions video needing no media, and prints the output
+It renders a two-shot colour-and-captions video needing no media, and prints the output
 path. If it writes an MP4, path A is proven and the §7 gate is met. If it fails for any
 reason other than the macOS version, that is the single most important thing to report.
 

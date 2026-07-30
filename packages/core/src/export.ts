@@ -34,13 +34,13 @@ export function toScriptMarkdown(project: Project): string {
   const lines: string[] = [`# ${project.name}`, ""];
 
   if (project.segments.length === 0) {
-    lines.push("_No segments yet._", "");
+    lines.push("_No shots yet._", "");
     return lines.join("\n");
   }
 
   for (const [index, segment] of project.segments.entries()) {
     const durationMs = resolveSegmentDurationMs(segment, project.assets, byId);
-    lines.push(`## Segment ${index + 1} — ${formatDurationMs(durationMs)}`, "");
+    lines.push(`## Shot ${index + 1} — ${formatDurationMs(durationMs)}`, "");
 
     const script = segment.script.trim();
     lines.push(script.length > 0 ? script : "_No script yet._", "");

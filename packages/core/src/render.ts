@@ -124,7 +124,7 @@ export function preflightRender(
   const durationMs = resolveProjectDurationMs(project);
 
   if (project.segments.length === 0) {
-    blockers.push({ kind: "no-segments", message: "This project has no segments yet." });
+    blockers.push({ kind: "no-segments", message: "This project has no shots yet." });
   }
 
   for (const [index, segment] of project.segments.entries()) {
@@ -132,7 +132,7 @@ export function preflightRender(
       blockers.push({
         kind: "missing-visual",
         segmentIndex: index,
-        message: `Segment ${index + 1} still needs a visual.`,
+        message: `Shot ${index + 1} still needs a visual.`,
       });
     }
   }

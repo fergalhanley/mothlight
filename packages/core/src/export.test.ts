@@ -69,9 +69,9 @@ describe("toScriptMarkdown", () => {
 
     const md = toScriptMarkdown(project);
     expect(md).toContain("# Why moths chase light");
-    expect(md).toContain("## Segment 1 — 0:04");
+    expect(md).toContain("## Shot 1 — 0:04");
     expect(md).toContain("Moths don't love light.");
-    expect(md).toContain("## Segment 2 — 0:03");
+    expect(md).toContain("## Shot 2 — 0:03");
     expect(md).toContain("They're lost.");
   });
 
@@ -82,7 +82,7 @@ describe("toScriptMarkdown", () => {
 
   test("handles a project with no segments", () => {
     const project = build({ segments: [] });
-    expect(toScriptMarkdown(project)).toContain("_No segments yet._");
+    expect(toScriptMarkdown(project)).toContain("_No shots yet._");
   });
 
   test("a new project round-trips without throwing", () => {
@@ -176,7 +176,7 @@ describe("toFcp7Xml", () => {
 
     const xml = toFcp7Xml(project, { resolveAssetPath });
     expect(xml).toContain('clipitem-a1"');
-    expect(xml).toContain("Segment 1 VO");
+    expect(xml).toContain("Shot 1 VO");
     expect(xml).toContain("<samplerate>48000</samplerate>");
   });
 

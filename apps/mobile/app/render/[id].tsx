@@ -6,6 +6,7 @@ import {
   type RenderPreflight,
 } from "@mothlight/core";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -163,13 +164,16 @@ export default function RenderScreen() {
             {saveNotice ? <Text style={styles.notice}>{saveNotice}</Text> : null}
 
             {render.phase === "done" && render.outputUri ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => void shareVideo(render.outputUri as string)}
-                style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
-              >
-                <Text style={styles.primaryLabel}>Share your video</Text>
-              </Pressable>
+              <>
+                <RenderedVideo uri={render.outputUri} />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => void shareVideo(render.outputUri as string)}
+                  style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+                >
+                  <Text style={styles.primaryLabel}>Share your video</Text>
+                </Pressable>
+              </>
             ) : (
               <Pressable
                 accessibilityRole="button"
@@ -195,6 +199,19 @@ export default function RenderScreen() {
   );
 }
 
+function RenderedVideo({ uri }: { uri: string }) {
+  const player = useVideoPlayer({ uri }, (instance) => instance.play());
+  return (
+    <VideoView
+      player={player}
+      nativeControls
+      contentFit="contain"
+      style={styles.renderedVideo}
+      surfaceType="textureView"
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { backgroundColor: theme.background, flex: 1 },
   topBar: { alignItems: "center", flexDirection: "row", paddingHorizontal: 16, paddingVertical: 8 },
@@ -217,6 +234,14 @@ const styles = StyleSheet.create({
   statusBlock: { alignItems: "center", flexDirection: "row", gap: 12 },
   status: { color: theme.text, flex: 1, fontSize: 15 },
   notice: { color: theme.textMuted, fontSize: 13 },
+  renderedVideo: {
+    alignSelf: "center",
+    aspectRatio: 9 / 16,
+    backgroundColor: "#000",
+    borderRadius: 12,
+    height: 420,
+    overflow: "hidden",
+  },
   primaryButton: {
     alignItems: "center",
     backgroundColor: theme.accent,

@@ -1,4 +1,4 @@
-import { CANVAS_FPS, CANVAS_HEIGHT, CANVAS_WIDTH, PROJECT_SCHEMA_VERSION } from "@mothlight/core";
+import { CANVAS_FPS, CANVAS_HEIGHT, CANVAS_WIDTH, PROJECT_SCHEMA_VERSION } from "./project";
 
 /**
  * The prompt a user hands to their own AI agent to get a Mothlight project back.
@@ -22,7 +22,7 @@ Return ONLY a JSON object, no prose and no code fences, in this shape:
 }
 
 Rules:
-- One segment per beat of the story. Aim for 4-8 segments.
+- One shot per beat of the story. Aim for 4-8 shots.
 - Each "script" is what a narrator says out loud over that shot. Keep it to one or
   two sentences — roughly 3-6 seconds of speech.
 - Write for the ear, not the page: short sentences, plain words, no headings or
@@ -34,8 +34,8 @@ Topic: <describe your video here>`;
 
 /** Shown alongside the prompt so the format is legible without reading the schema. */
 export const AGENT_NOTES = [
-  `Segments play in order on a ${CANVAS_WIDTH}×${CANVAS_HEIGHT} canvas at ${CANVAS_FPS}fps.`,
-  "A segment with no visual shows as “needs a visual” in the editor — that is the point.",
+  `Shots play in order on a ${CANVAS_WIDTH}×${CANVAS_HEIGHT} canvas at ${CANVAS_FPS}fps.`,
+  "A shot with no visual shows as “needs a visual” in the editor — that is the point.",
   "Everything else has a sensible default, so a file with just names and scripts is valid.",
   "Save the result as a .json file and open it with Mothlight, or import it here.",
 ];
