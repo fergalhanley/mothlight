@@ -40,7 +40,7 @@ export default function AgentPage() {
         <p>
           Copy this, replace the topic on the last line, and paste it into your assistant of choice.
         </p>
-        <pre className="overflow-x-auto rounded-lg border border-neutral-800 bg-neutral-900 p-4 font-mono text-[13px] leading-relaxed text-neutral-200">
+        <pre className="overflow-x-auto rounded-lg border border-border-subtle bg-surface-raised p-4 font-mono text-[13px] leading-relaxed text-foreground">
           <code>{AGENT_PROMPT}</code>
         </pre>
       </Section>
@@ -49,7 +49,7 @@ export default function AgentPage() {
         <p>
           Save what you get back as a <span className="font-mono text-[13px]">.json</span> file.
           Then either open it from your Files app, share it to {SITE_NAME}, or use{" "}
-          <strong className="text-neutral-100">Import project…</strong> from the menu on the project
+          <strong className="text-foreground">Import project…</strong> from the menu on the project
           list. If something is wrong with the file, {SITE_NAME} says which shot has the problem
           rather than showing a stack trace.
         </p>
@@ -61,8 +61,8 @@ export default function AgentPage() {
           <span className="font-mono text-[13px]">{PROJECT_SCHEMA_VERSION}</span> — also covers
           per-shot durations, captions, text overlays, Ken Burns on stills, video trims, and a
           project soundtrack. The quickest way to see all of it is to build a project in the app and
-          use <strong className="text-neutral-100">Export project</strong>: what comes out is
-          exactly what goes back in.
+          use <strong className="text-foreground">Export project</strong>: what comes out is exactly
+          what goes back in.
         </p>
       </Section>
     </Prose>

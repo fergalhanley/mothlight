@@ -17,7 +17,7 @@ export default function SupportPage() {
           Email{" "}
           <a
             href={`mailto:${CONTACT_EMAIL}`}
-            className="text-blue-400 underline underline-offset-4 hover:text-blue-300"
+            className="text-moth-green underline underline-offset-4 hover:opacity-80"
           >
             {CONTACT_EMAIL}
           </a>
@@ -35,7 +35,7 @@ export default function SupportPage() {
       <Section heading="Common questions">
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
-            <h3 className="font-semibold text-neutral-100">Do I need an account?</h3>
+            <h3 className="font-semibold text-foreground">Do I need an account?</h3>
             <p>
               No. There is no sign-in, and there is nothing to create. Your projects live on your
               phone.
@@ -43,7 +43,7 @@ export default function SupportPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <h3 className="font-semibold text-neutral-100">Where did my project go?</h3>
+            <h3 className="font-semibold text-foreground">Where did my project go?</h3>
             <p>
               Projects are stored on the device, so they do not follow you to a new phone and they
               are removed if you delete the app. You can export a project as a{" "}
@@ -53,7 +53,7 @@ export default function SupportPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <h3 className="font-semibold text-neutral-100">I deleted a project by accident.</h3>
+            <h3 className="font-semibold text-foreground">I deleted a project by accident.</h3>
             <p>
               Deleting shows an UNDO button for a few seconds. Once that disappears the project and
               its files are gone, and we have no copy to restore — we never had one.
@@ -61,14 +61,14 @@ export default function SupportPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <h3 className="font-semibold text-neutral-100">Does rendering need the internet?</h3>
+            <h3 className="font-semibold text-foreground">Does rendering need the internet?</h3>
             <p>
               Yes. Rendering happens on our servers, so it needs a connection and it uploads the
               media in your project. Everything else — writing, editing, recording, previewing —
               works offline. See the{" "}
               <Link
                 href="/privacy"
-                className="text-blue-400 underline underline-offset-4 hover:text-blue-300"
+                className="text-moth-green underline underline-offset-4 hover:opacity-80"
               >
                 privacy page
               </Link>{" "}
@@ -77,12 +77,12 @@ export default function SupportPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <h3 className="font-semibold text-neutral-100">Can an AI write my script?</h3>
+            <h3 className="font-semibold text-foreground">Can an AI write my script?</h3>
             <p>
               Yes, using your own assistant.{" "}
               <Link
                 href="/agent"
-                className="text-blue-400 underline underline-offset-4 hover:text-blue-300"
+                className="text-moth-green underline underline-offset-4 hover:opacity-80"
               >
                 Here is the prompt
               </Link>

@@ -1,14 +1,48 @@
 @import "tailwindcss";
 
-/* Dark theme is the default and, for now, the only theme. */
+/**
+ * Mothlight's palette, taken from the moth artwork.
+ *
+ * The four wing colours run left to right in the image — violet, pink, amber, green — and
+ * that order is load-bearing on the site: the spectrum rule, the numbered steps, and the
+ * hero glow all use it, so the page reads as the same object as the logo.
+ *
+ * Everything else is deliberately colourless. Four saturated colours against near-black
+ * is already a lot; giving them the only chroma on the page is what keeps them legible.
+ */
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  /* Page is near-black but slightly warm, so the amber and pink do not look grafted on. */
+  --background: #0a0908;
+  --surface: #141312;
+  --surface-raised: #1c1a19;
+  --border: #2a2724;
+
+  /* Off-white rather than white — pure white against this background is glary. */
+  --foreground: #ede9e4;
+  --muted: #9c948b;
+  --faint: #6b645d;
+
+  --moth-violet: #5d4399;
+  --moth-pink: #e16595;
+  --moth-amber: #f5b673;
+  --moth-green: #7ad437;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border-subtle: var(--border);
+
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+
+  --color-moth-violet: var(--moth-violet);
+  --color-moth-pink: var(--moth-pink);
+  --color-moth-amber: var(--moth-amber);
+  --color-moth-green: var(--moth-green);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -17,4 +51,66 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* The wing spectrum, used as a hairline rule between sections. */
+.spectrum-rule {
+  background: linear-gradient(
+    90deg,
+    var(--moth-violet) 0%,
+    var(--moth-pink) 33%,
+    var(--moth-amber) 66%,
+    var(--moth-green) 100%
+  );
+}
+
+/**
+ * Fades the artwork's own square edges into the page.
+ *
+ * The source PNG has a dark but not-quite-background surround; without this it reads as a
+ * pasted-on tile rather than a moth in the dark.
+ */
+.moth-vignette {
+  /* Aggressive fade: the artwork's colour bands run to its own edges, so a gentle mask
+     leaves a visible rectangle floating on the page. */
+  mask-image: radial-gradient(ellipse 58% 54% at 50% 47%, #000 35%, transparent 88%);
+}
+
+/* Diffuse glow behind the hero, in the wing colours. */
+.hero-glow {
+  background:
+    radial-gradient(
+      40% 50% at 28% 45%,
+      color-mix(in oklab, var(--moth-violet) 45%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      38% 48% at 44% 52%,
+      color-mix(in oklab, var(--moth-pink) 38%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      38% 48% at 58% 52%,
+      color-mix(in oklab, var(--moth-amber) 34%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      40% 50% at 74% 45%,
+      color-mix(in oklab, var(--moth-green) 34%, transparent),
+      transparent 70%
+    );
+  filter: blur(56px);
+}
+
+/* !important is correct here: a reduced-motion request has to beat every other rule,
+   including anything a component sets inline. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore-start lint/complexity/noImportantStyles: accessibility override must win */
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    /* biome-ignore-end lint/complexity/noImportantStyles: accessibility override must win */
+  }
 }

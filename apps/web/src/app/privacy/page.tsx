@@ -96,16 +96,16 @@ export default function PrivacyPage() {
         </p>
         <ul className="flex list-disc flex-col gap-2 pl-5">
           <li>
-            <strong className="text-neutral-100">Photos and videos</strong> — so you can pick
+            <strong className="text-foreground">Photos and videos</strong> — so you can pick
             pictures for your shots. We read only what you choose.
           </li>
           <li>
-            <strong className="text-neutral-100">Microphone</strong> — so you can record a
-            voiceover. Recording only happens while you hold or start a recording, and the audio
-            stays in your project.
+            <strong className="text-foreground">Microphone</strong> — so you can record a voiceover.
+            Recording only happens while you hold or start a recording, and the audio stays in your
+            project.
           </li>
           <li>
-            <strong className="text-neutral-100">Saving to your photo library</strong> — so a
+            <strong className="text-foreground">Saving to your photo library</strong> — so a
             finished video lands in your camera roll.
           </li>
         </ul>
@@ -144,7 +144,7 @@ export default function PrivacyPage() {
           Questions about privacy, or anything else, go to{" "}
           <a
             href={`mailto:${CONTACT_EMAIL}`}
-            className="text-blue-400 underline underline-offset-4 hover:text-blue-300"
+            className="text-moth-green underline underline-offset-4 hover:opacity-80"
           >
             {CONTACT_EMAIL}
           </a>
