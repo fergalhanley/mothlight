@@ -32,7 +32,43 @@ the API exposes a health check plus one example protected route.
 | Supabase CLI   | >= 2.75           | `brew install supabase/tap/supabase`                      |
 | Docker         | any recent        | **Required** by `supabase start` for the local stack      |
 | Xcode          | latest            | iOS dev-client builds (macOS only)                        |
+| Ruby           | >= 2.7            | **iOS only, and macOS system Ruby is 2.6 — see below**    |
 | Android Studio | latest            | Android dev-client builds                                 |
+
+### Ruby: do not use the macOS system Ruby for iOS builds
+
+`/usr/bin/pod` runs on macOS's built-in Ruby 2.6. Expo's precompiled-module
+resolver uses `filter_map` (Ruby 2.7+), so on system Ruby it throws once per
+module and **silently** falls back to building every Expo module from Swift
+source:
+
+```
+[!] [Expo-precompiled] Failed to read spm.config.json at .../expo-audio/spm.config.json:
+    undefined method `filter_map' for #<Array>
+[Expo-precompiled]   ⚠️  ExpoModulesCore (prebuilt config not found)
+```
+
+That fallback is what exposes https://github.com/expo/expo/issues/47539 —
+`sending 'emitter' risks causing data races` in `expo-modules-core`'s
+`EventEmitter.swift` under Swift 6 strict concurrency. The build then fails
+thousands of lines later with what looks like an unrelated compiler error.
+
+Fix it once:
+
+```bash
+brew install ruby
+export PATH="/usr/local/opt/ruby/bin:$PATH"      # /opt/homebrew on Apple Silicon
+gem install cocoapods
+export PATH="$(gem environment gemdir)/bin:$PATH"
+```
+
+Keep that on `PATH` for `pod install`, `expo prebuild`, and `expo run:ios`.
+Confirm precompiled modules are actually in use — `pod install` should print
+`📦 ExpoModulesCore`, not `⚠️ ExpoModulesCore (prebuilt config not found)`.
+
+`ExpoModulesJSI` is the one Expo module that always builds from source, so it
+needs `patches/expo-modules-jsi@57.0.4.patch` (applied automatically by
+`bun install`). See that patch's commit message for why.
 
 ---
 
