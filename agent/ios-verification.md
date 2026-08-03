@@ -178,7 +178,15 @@ Nothing in `app/`, `src/` or `packages/` was changed. No product code needed fix
 
 Verification ran against `55c7b25`. Rebasing onto `6f6802c` brought in the other agent's
 import/export, render path A, and marketing site — which **resolved most of what I had
-flagged**. Re-checked after the merge:
+flagged**.
+
+The merged HEAD was then rebuilt from scratch and re-run to confirm the two sets of
+changes coexist: build clean, app installs and launches, dashboard renders (including the
+new "More" entry point and the `segments` → `shots` wording). Both platforms still emit
+correct permissions — iOS keeps the microphone string alongside the new
+`CFBundleDocumentTypes`, and Android emits `RECORD_AUDIO` without `tools:node="remove"`.
+
+Re-checked after the merge:
 
 1. ~~**The demo tells a reviewer to tap a button that does not exist.**~~ **Resolved.**
    Segment 4's *"Tap Render to try it"* was a rejection risk while render was unbuilt.
