@@ -1,387 +1,86 @@
 # Mothlight
 
-Monorepo boilerplate for Mothlight, a mobile-first AI short-video creation product.
+A local-first narrative filmmaking studio, with Toffler's script / visuals / audio workspace reworked around scenes and shots. Develop stories, keep a shared world bible, produce reference frames and takes, assemble a rough cut, and finish in DaVinci Resolve.
 
-This repository is **scaffolding only** — project structure, tooling, and auth wiring.
-There is no product functionality yet: the mobile app has sign-in/sign-up screens and an
-authenticated placeholder home screen, the web app has a placeholder landing page, and
-the API exposes a health check plus one example protected route.
+This replaces the previous mobile video app. Its Git history remains intact; the old Expo, Supabase, Next.js and rendering code is no longer part of the app.
 
----
+## Run the studio
 
-## Contents
+Install **Bun 1.3.7 or newer**, **FFmpeg** (including ffprobe), and **zip**. On macOS, `brew install bun ffmpeg` supplies the first two; zip is normally already installed.
 
-| Path               | What it is                                                        |
-| ------------------ | ----------------------------------------------------------------- |
-| `apps/mobile`      | Expo (SDK 57) app, expo-router, custom dev client                 |
-| `apps/web`         | Next.js 16 App Router marketing site                              |
-| `apps/api`         | Bun + Hono REST service                                           |
-| `packages/core`    | Shared constants, zod schemas, types                              |
-| `packages/db`      | Supabase client factories + generated database types              |
-| `packages/config`  | Shared Biome and TypeScript configs                               |
-| `supabase/`        | Supabase CLI project: `config.toml`, migrations                   |
-
----
-
-## Prerequisites
-
-| Tool           | Version           | Notes                                                    |
-| -------------- | ----------------- | -------------------------------------------------------- |
-| Bun            | >= 1.3.0          | Package manager and runtime. `curl -fsSL https://bun.sh/install \| bash` |
-| Node.js        | >= 20             | Needed by some Expo/Next tooling, not to run the API      |
-| Supabase CLI   | >= 2.75           | `brew install supabase/tap/supabase`                      |
-| Docker         | any recent        | **Required** by `supabase start` for the local stack      |
-| Xcode          | latest            | iOS dev-client builds (macOS only)                        |
-| Ruby           | >= 2.7            | **iOS only, and macOS system Ruby is 2.6 — see below**    |
-| Android Studio | latest            | Android dev-client builds                                 |
-
-### Ruby: do not use the macOS system Ruby for iOS builds
-
-`/usr/bin/pod` runs on macOS's built-in Ruby 2.6. Expo's precompiled-module
-resolver uses `filter_map` (Ruby 2.7+), so on system Ruby it throws once per
-module and **silently** falls back to building every Expo module from Swift
-source:
-
-```
-[!] [Expo-precompiled] Failed to read spm.config.json at .../expo-audio/spm.config.json:
-    undefined method `filter_map' for #<Array>
-[Expo-precompiled]   ⚠️  ExpoModulesCore (prebuilt config not found)
+```sh
+bun install --frozen-lockfile
+bun run dev
 ```
 
-That fallback is what exposes https://github.com/expo/expo/issues/47539 —
-`sending 'emitter' risks causing data races` in `expo-modules-core`'s
-`EventEmitter.swift` under Swift 6 strict concurrency. The build then fails
-thousands of lines later with what looks like an unrelated compiler error.
+Open **http://localhost:3000** and create your studio account. No cloud account, API key, Docker container or external database is needed. The first-account setup closes after it succeeds. Use a password of at least 12 characters.
 
-Fix it once:
+`bun start` runs without watching files. `bun run build`, `bun run typecheck` and `bun test` validate the source and compile the client/server. Run all commands from the repository root.
 
-```bash
-brew install ruby
-export PATH="/usr/local/opt/ruby/bin:$PATH"      # /opt/homebrew on Apple Silicon
-gem install cocoapods
-export PATH="$(gem environment gemdir)/bin:$PATH"
+## Make a film
+
+1. Create a **profile** for a body of work. Profiles separate projects, series, world assets, uploaded media and production jobs. One user can work in several profiles.
+2. Create a **series** and its world bible, if the films share a universe. Create a short, episode or feature inside it.
+3. Write a treatment and visual direction in **Story**. Add scenes manually or import a Fountain/plain-text screenplay with `INT.` and `EXT.` scene headings. Imports append scenes and preserve the original action and dialogue.
+4. Build the profile's **World library**: characters, locations, props, costumes, visual styles and voices. Record their descriptions, reusable prompts, continuity rules and reference media.
+5. In **Shot workspace**, break each scene into shots. Set action, dialogue, camera movement, duration and continuity. Link the relevant world assets. Reorder scenes and shots using their up/down controls.
+6. Import a storyboard and optional end frame. Import multiple video takes, record provider/model/prompt/cost and review notes, set source trim, compare them, and select a take. Approval requires a selected take.
+7. In **Sound**, import dialogue, music, effects and ambience. Set timeline offset, source trim, duration and gain for each cue. A voice asset is a bible/reference entry, not a built-in TTS generator.
+8. In **Rough cut**, render the selected shots with FFmpeg. The app normalizes dimensions and frame rate, fits media without cropping, and holds the final frame when a clip is shorter than its planned shot. A queued render captures the project settings, takes and cue timings at submission. Rendered video uses the separate audio cues; embedded take audio is excluded.
+9. Download the **Resolve handoff** ZIP. It contains a CMX3600 video EDL, original selected video/audio files, a timing/relink manifest and production JSON. Import the EDL at the manifest frame rate, relink to the `media` directory, and place audio cues using the manifest. Audio track placement is not encoded in the video EDL. This first version supports straight cuts at 24, 25 and 30 fps, without transitions or a full nonlinear editor.
+
+## Generation tools
+
+External image/video tools work immediately through media import. Direct generation uses a **provider-neutral local executable adapter**. Configure `MOTHLIGHT_GENERATOR` in `.env` and restart the server. See [the adapter contract](docs/generator-adapter.md).
+
+The executable receives a JSON snapshot containing the shot, camera, dialogue, duration, negative prompt, project style, linked asset descriptions/continuity and local first/last/reference image paths. It returns an output path and actual reported cost. Successful video jobs create new takes; successful image jobs attach storyboard frames. Takes are never selected automatically.
+
+No proprietary provider, API key, model price or unverified third-party workflow is baked into this build. The workflow follows a reference-first approach: world design → storyboard → animate individual shots → review → assemble → finish. Provider-specific adapters are the next extension point, rather than buttons that simulate generation.
+
+Jobs are stored in SQLite and run serially. Queued jobs survive restarts. Interrupted jobs become failed for manual review; the app does not automatically resubmit potentially billable requests. Local failures do not guarantee the provider incurred no charge. Reported costs are in USD and are production bookkeeping, not a billing/reconciliation service.
+
+## Data and accounts
+
+SQLite runs in WAL mode with foreign keys. Metadata is stored in `.mothlight/studio.sqlite`; original and rendered media are in `.mothlight/media/`. Both are ignored by Git. `MOTHLIGHT_DATA_DIR` changes the location. Deleted production records do not delete uploaded files, so retained takes and references can still be recovered manually.
+
+Back up the **whole data directory**, not only the database. Stop the studio before copying it, or use SQLite's backup facilities and also copy all media. The Resolve package is a finishing handoff, not a complete backup of every profile asset.
+
+Passwords use Argon2id. Session tokens are random, stored hashed in SQLite, and sent in HttpOnly, SameSite cookies. Requests are authorized against profile memberships, including nested scene/shot/media routes and every cross-resource reference. Owners manage memberships; editors mutate productions; viewers read and export.
+
+Create another account with the admin CLI. Read a password into an environment variable without putting the password itself in shell history:
+
+```sh
+read -s MOTHLIGHT_NEW_PASSWORD
+export MOTHLIGHT_NEW_PASSWORD
+bun src/server/admin.ts colleague@example.com "Colleague"
+unset MOTHLIGHT_NEW_PASSWORD
 ```
 
-Keep that on `PATH` for `pod install`, `expo prebuild`, and `expo run:ios`.
-Confirm precompiled modules are actually in use — `pod install` should print
-`📦 ExpoModulesCore`, not `⚠️ ExpoModulesCore (prebuilt config not found)`.
+Then use **Profile settings → Manage members** to grant that account editor or viewer access. This creates an existing-user membership; it does not send an invitation or email. There is no public signup, password reset email, subscription billing or hosted account administration UI yet.
 
-`ExpoModulesJSI` is the one Expo module that always builds from source, so it
-needs `patches/expo-modules-jsi@57.0.4.patch` (applied automatically by
-`bun install`). See that patch's commit message for why.
+## Future hosting
 
----
+The data model already separates users from work profiles. For controlled hosting behind an HTTPS reverse proxy:
 
-## Getting started
-
-```bash
-bun install
-
-# Copy the env templates and fill them in (see "Environment variables" below).
-cp apps/api/.env.example    apps/api/.env
-cp apps/web/.env.example    apps/web/.env.local
-cp apps/mobile/.env.example apps/mobile/.env
-
-# Start the local Supabase stack (Postgres + Auth + Studio). Requires Docker.
-bun run db:start
+```dotenv
+MOTHLIGHT_HOSTED=true
+MOTHLIGHT_ORIGIN=https://studio.example.com
+HOST=0.0.0.0
+MOTHLIGHT_DATA_DIR=/persistent/mothlight
 ```
 
-`bun run db:start` prints the local `API URL`, `anon key`, and `service_role key`. Paste
-those into the three env files you just created, then regenerate the database types:
-
-```bash
-bun run db:types
-```
-
-### Running things
-
-```bash
-bun run dev        # every app at once, via Turborepo
-bun run lint       # Biome across the workspace
-bun run typecheck  # tsc --noEmit in every package
-bun run test       # bun test
-bun run build      # next build + bun build
-```
-
-Per app:
-
-```bash
-bun run --cwd apps/web dev     # http://localhost:3000
-bun run --cwd apps/api dev     # http://localhost:3001  (GET /health)
-bun run --cwd apps/mobile dev  # Metro, attaches to the dev client
-```
-
-Database helpers:
-
-```bash
-bun run db:start   # supabase start
-bun run db:stop    # supabase stop
-bun run db:reset   # re-runs every migration from scratch
-bun run db:types   # regenerate packages/db/src/database.types.ts
-```
-
-### Mobile: this is a dev client, not Expo Go
-
-`expo-dev-client` is installed because native modules (RevenueCat and friends) are
-coming. Expo Go will not work. Build and install the dev client once per platform:
-
-```bash
-bun run --cwd apps/mobile ios       # or: android
-bun run --cwd apps/mobile dev       # then attach Metro to it
-bun run --cwd apps/mobile doctor    # expo-doctor
-```
-
-`ios/` and `android/` are git-ignored — they are regenerated by `expo prebuild`, which
-`expo run:*` invokes for you.
-
----
-
-## Environment variables
-
-Nothing here is a secret in the repo: every app has a committed `.env.example` and a
-git-ignored real env file. **Never commit real keys.**
-
-### `apps/api/.env`
-
-| Variable                    | Required | Purpose                                                                 |
-| --------------------------- | -------- | ----------------------------------------------------------------------- |
-| `PORT`                      | no       | Listen port. Default `3001`.                                            |
-| `SUPABASE_URL`              | **yes**  | Project base URL. Also the JWT issuer (`<url>/auth/v1`).                 |
-| `SUPABASE_SERVICE_ROLE_KEY` | no       | Service-role key for RLS-bypassing server work. Never expose to clients. |
-| `SUPABASE_JWT_SECRET`       | no       | Legacy HS256 secret. **Leave empty** to verify via JWKS instead.         |
-| `CORS_ALLOWED_ORIGINS`      | no       | Comma-separated browser origins. Default `http://localhost:3000`.        |
-
-### `apps/web/.env.local`
-
-| Variable                        | Required | Purpose                                                   |
-| ------------------------------- | -------- | --------------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | **yes**  | Project base URL.                                         |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **yes**  | Anon/publishable key. Public by design, governed by RLS.  |
-| `NEXT_PUBLIC_SITE_URL`          | no       | Public origin used to build OAuth redirects.              |
-
-### `apps/mobile/.env`
-
-| Variable                        | Required | Purpose                                                  |
-| ------------------------------- | -------- | -------------------------------------------------------- |
-| `EXPO_PUBLIC_SUPABASE_URL`      | **yes**  | Project base URL.                                        |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | **yes**  | Anon/publishable key.                                    |
-
-`EXPO_PUBLIC_*` values are inlined into the shipped JS bundle and are readable by anyone
-with the app. Only ever put public values there.
-
-When pointing the mobile app at a local Supabase stack, `127.0.0.1` resolves to the
-device, not your Mac. Use `http://10.0.2.2:54321` on the Android emulator and your
-machine's LAN IP on a physical device.
-
-### `supabase/.env` (optional, local only)
-
-Only needed if you want to exercise Google/Facebook/Apple against the **local** stack.
-See `supabase/.env.example`. `supabase start` works without it because every
-`[auth.external.*]` block ships disabled.
-
----
-
-## Manual provider setup
-
-Auth providers cannot be fully configured from this repo — the OAuth apps live with
-Google, Meta, and Apple, and the hosted Supabase project is configured in its dashboard.
-This is the checklist.
-
-### 1. Redirect URLs (do this first)
-
-Supabase Dashboard → **Authentication → URL Configuration**:
-
-- **Site URL**: your web origin, e.g. `https://mothlight.io` (locally `http://localhost:3000`)
-- **Redirect URLs** — add both:
-  - `https://<your-web-domain>/auth/callback` (and `http://localhost:3000/auth/callback` for dev)
-  - `mothlight://auth/callback` — the mobile deep link
-
-The local equivalents are already in `supabase/config.toml` under
-`additional_redirect_urls`, so local dev needs no dashboard work.
-
-Every provider below also needs Supabase's own callback URL registered on the
-provider's side:
-
-```
-https://<project-ref>.supabase.co/auth/v1/callback
-```
-
-### 2. Google
-
-1. Google Cloud Console → **APIs & Services → Credentials**.
-2. Configure the OAuth consent screen.
-3. Create an **OAuth client ID → Web application**.
-4. Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`.
-5. Supabase Dashboard → **Authentication → Providers → Google** → enable, then paste the
-   **Client ID** and **Client Secret**.
-
-> For native sign-in later you will also create iOS and Android OAuth clients and add
-> their client IDs to the provider's "Authorized Client IDs" list. Not needed for the
-> web-based flow this boilerplate uses.
-
-### 3. Facebook / Meta
-
-1. Meta for Developers → create an app of type **Consumer**.
-2. Add the **Facebook Login** product.
-3. Valid OAuth Redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`.
-4. Copy **App ID** and **App Secret** from **App settings → Basic**.
-5. Supabase Dashboard → **Authentication → Providers → Facebook** → enable, paste both.
-6. Facebook requires the app to be **Live**, and `email` + `public_profile` permissions,
-   before non-developer accounts can sign in.
-
-### 4. Apple — required, do not skip
-
-**App Store Review Guideline 4.8** requires Sign in with Apple whenever an app offers
-any other third-party sign-in. Mothlight offers Google and Facebook, so shipping the iOS
-app without Apple will get it rejected.
-
-1. Apple Developer → **Certificates, Identifiers & Profiles**.
-2. **Identifiers → App ID**: `app.mothlight`, enable the **Sign In with Apple** capability.
-3. **Identifiers → Services ID** (e.g. `app.mothlight.web`) — this is the OAuth
-   **client id**. Enable Sign In with Apple and configure:
-   - Domain: `<project-ref>.supabase.co`
-   - Return URL: `https://<project-ref>.supabase.co/auth/v1/callback`
-4. **Keys** → create a key with Sign In with Apple enabled, download the `.p8` (one
-   download only). Note the **Key ID** and your **Team ID**.
-5. Generate the client secret — Apple's is a signed JWT, not a static string, and it
-   expires after at most 6 months, so calendar a rotation reminder.
-6. Supabase Dashboard → **Authentication → Providers → Apple** → enable. **Services ID**
-   goes in the client id field, the generated JWT in the secret field.
-7. For the native iOS flow add `app.mothlight` (the bundle id) to the provider's
-   authorized client IDs.
-
-### 5. Where each value ends up
-
-| Value                              | Goes into                                                   |
-| ---------------------------------- | ----------------------------------------------------------- |
-| Google client ID + secret          | Supabase Dashboard → Providers → Google                     |
-| Facebook App ID + secret           | Supabase Dashboard → Providers → Facebook                   |
-| Apple Services ID + secret JWT     | Supabase Dashboard → Providers → Apple                      |
-| Supabase anon key                  | `apps/web/.env.local`, `apps/mobile/.env`                   |
-| Supabase service-role key          | `apps/api/.env` only — never a client                       |
-
-No provider client secret ever belongs in this repository.
-
----
-
-## Database
-
-One migration, `supabase/migrations/20260728000000_create_profiles.sql`:
-
-- `public.profiles` — `id uuid` referencing `auth.users(id)` on delete cascade,
-  `display_name text`, `created_at timestamptz default now()`
-- RLS **enabled**, with select and update policies scoped to `auth.uid() = id`
-- No insert/delete policies: rows are created by a trigger and removed by the cascade,
-  and RLS denies anything without a matching policy
-- `public.handle_new_user()` — `SECURITY DEFINER` trigger on `auth.users` that inserts
-  the profile row on signup, seeding `display_name` from OAuth metadata when present
-
-After changing a migration:
-
-```bash
-bun run db:reset   # replay migrations against the local stack
-bun run db:types   # regenerate packages/db/src/database.types.ts
-```
-
-`packages/db/src/database.types.ts` is generated but **checked in**, so a clean checkout
-typechecks without Docker. Do not hand-edit it.
-
----
-
-## Architecture notes
-
-Decisions worth knowing, mostly boring ones:
-
-- **TypeScript 6.0.3, not 7.x.** TypeScript 7 is the current stable release, but Next 16
-  rejects its compiler API (`TypeScript 7.0.2 does not provide the compiler API required
-  by Next.js`) and Expo SDK 57 pins `~6.0.3`. The whole workspace is on 6.0.3 so one
-  `tsc` serves every package.
-- **Bun uses the hoisted linker** (`bunfig.toml`). Bun 1.3 defaults to an isolated,
-  pnpm-style layout that installs several physical copies of native modules; React Native
-  allows only one, and `expo-doctor` fails on it.
-- **React is pinned to 19.2.3** via root `overrides`, matching Expo SDK 57. Next's
-  template wanted 19.2.4, which produced a second copy of React in the tree.
-- **Next 16 renamed Middleware to Proxy.** Session refresh lives in
-  `apps/web/src/proxy.ts`, not `middleware.ts`.
-- **`apps/mobile/tsconfig.json` extends `expo/tsconfig.base`**, not the shared config, as
-  it carries the React Native type libs Metro expects. The strictness flags are mirrored
-  by hand.
-- **Supabase clients are split by entry point** — `@mothlight/db/browser`, `/server`,
-  `/admin` — so the Expo bundle never pulls in the cookie-based `@supabase/ssr` helpers.
-  The mobile app builds its own SecureStore-backed client and imports only the types.
-- **The API verifies JWTs via JWKS by default**, falling back to HS256 only when
-  `SUPABASE_JWT_SECRET` is set, which suits older projects with symmetric signing keys.
-- **SecureStore has a 2048-byte limit per value on Android.** A Supabase session fits
-  today; adding large custom JWT claims would require chunking across keys.
-- **Dark theme only**, on both web and mobile. There is no theme switcher.
-
----
-
-## Tooling
-
-- **Biome** for linting and formatting — no ESLint, no Prettier. Shared config lives in
-  `packages/config/biome/base.json`; the root `biome.json` extends it. `bun run lint:fix`
-  applies safe fixes.
-- **Turborepo** drives `build`, `dev`, `lint`, `typecheck`, and `test`. `dev` is marked
-  persistent and uncached; `build` caches `.next/` and `dist/`.
-- **Deployment**: `apps/api/Dockerfile` builds on `oven/bun`. Build it from the **repo
-  root**, since the Bun workspace needs the root manifest and lockfile:
-
-  ```bash
-  docker build -f apps/api/Dockerfile -t mothlight-api .
-  ```
-
----
-
-## Deploying the marketing site
-
-`apps/web` carries the privacy policy and support page that both app stores require on a
-listing, so it has to be live before submission.
-
-### Vercel project settings
-
-The only setting that matters is the root directory. Everything else is auto-detected.
-
-| Setting | Value |
-| --- | --- |
-| Root Directory | **`apps/web`** |
-| Framework Preset | Next.js (auto-detected) |
-| Build / Install / Output | leave as detected — Vercel sees `bun.lock` and `turbo.json` and does the right thing |
-| Environment variables | **none** |
-
-That last row is deliberate. Every page is static and renders with no environment at all;
-the session-refresh proxy and `/auth/callback` both stand down when Supabase is
-unconfigured. Do not add `NEXT_PUBLIC_SUPABASE_*` here — setting them switches on auth
-plumbing that v0 does not use.
-
-Two pieces of config make the monorepo build work and should not be removed:
-
-- `transpilePackages: ["@mothlight/core"]` in `apps/web/next.config.ts`. That package ships
-  raw TypeScript on purpose, so Next has to compile it rather than treat it as prebuilt.
-- `outputFileTracingRoot` pointing at the repo root, so tracing picks up the workspace
-  packages that live above the root directory.
-
-### Domain
-
-Point `mothlight.app` at the project, add `www.mothlight.app` as a redirect to the apex,
-and let Vercel issue the certificate. Then update `SITE_URL` in `apps/web/src/lib/site.ts`
-if the domain ever changes — it is what `metadataBase` and the Open Graph card use.
-
-### Before submitting to a store
-
-- [ ] `https://mothlight.app/privacy` loads
-- [ ] `https://mothlight.app/support` loads
-- [ ] `developer@mothlight.app` receives mail — reviewers do write to it
-- [ ] Re-read `/privacy` against the shipping binary. It states that the app collects
-      nothing and that rendering uploads media. Adding analytics, or dropping server-side
-      render, makes it wrong.
-
-### Verifying locally the way it deploys
-
-```bash
-bun run --cwd apps/web build
-cd apps/web && env -u NEXT_PUBLIC_SUPABASE_URL -u NEXT_PUBLIC_SUPABASE_ANON_KEY bunx next start
-```
-
-Unsetting those variables is the point: it reproduces the production environment and
-catches anything that assumes Supabase is configured.
+Hosted mode requires an HTTPS origin, sets Secure cookies and disables first-user web setup. Provision accounts with the CLI. Forward the original origin through the proxy. SQLite and media need persistent storage on a **single server**; this is not suitable for ephemeral serverless filesystems. Paid public deployment remains a later milestone: account recovery, signup/invitations, quotas/budgets, billing, media retention, hardened provider workers and operational backup need product work before a commercial launch.
+
+## Code map
+
+- `src/client/`: dependency-free TypeScript studio interface, dark theme, responsive layouts.
+- `src/server/schema.sql`: relational model and initial schema version.
+- `src/server/db.ts`: Bun's native SQLite database and query helpers.
+- `src/server/auth.ts`: users, sessions, memberships and authorization.
+- `src/server/api.ts`: validated profile-scoped production/media endpoints.
+- `src/server/worker.ts`: persisted generation queue and FFmpeg rough-cut rendering.
+- `src/server/export.ts`: production documents, frame timing and Resolve EDL.
+- `src/server/screenplay.ts`: screenplay scene import.
+- `tests/`: database, authentication, isolation, media, generation, rough-cut and handoff integration checks.
+
+See [the architecture notes](docs/architecture.md) for the production model and the specific Toffler ideas carried across.

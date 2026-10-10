@@ -1,5 +1,0 @@
-{
-  "extends": "@mothlight/config/tsconfig/library",
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
-}
