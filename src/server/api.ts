@@ -528,23 +528,42 @@ export async function api(req: Request): Promise<Response> {
         glb: "model/gltf-binary", gltf: "model/gltf+json",
         zip: "application/zip", svg: "image/svg+xml",
       };
+      // Unknown or browser-specific types are retained as downloadable
+      // binary references, never served inline with their supplied MIME type.
+      const knownMediaTypes = new Set([
+        "image/png", "image/jpeg", "image/webp", "image/gif", "image/avif", "image/svg+xml",
+        "video/mp4", "video/webm", "video/quicktime", "video/x-matroska",
+        "audio/wav", "audio/x-wav", "audio/mpeg", "audio/mp4", "audio/ogg",
+        "audio/flac", "audio/x-m4a", "audio/aac",
+        "text/plain", "text/markdown", "application/json", "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/zip", "model/gltf-binary", "model/gltf+json",
+        "application/octet-stream",
+      ]);
       const mime = file instanceof File
-        ? (file.type && file.type !== "application/octet-stream" ? file.type : extTypes[extension || ""] || "application/octet-stream")
+        ? (knownMediaTypes.has(file.type)
+            ? file.type
+            : extTypes[extension || ""] || "application/octet-stream")
         : "";
       requireValue(
         [
           "image/png",
           "image/jpeg",
           "image/webp",
+          "image/gif",
+          "image/avif",
           "video/mp4",
           "video/webm",
           "video/quicktime",
+          "video/x-matroska",
           "audio/wav",
           "audio/x-wav",
           "audio/mpeg",
           "audio/mp4",
           "audio/ogg",
           "audio/flac",
+          "audio/x-m4a",
+          "audio/aac",
           "text/plain",
           "text/markdown",
           "application/json",
