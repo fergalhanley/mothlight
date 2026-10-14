@@ -1,5 +1,6 @@
 import { mediaResponse } from "./media";
 import { parseScreenplay } from "./screenplay";
+import { parseShotMarkdown, normalizedHeading } from "./shot-markdown";
 import { basename, join } from "node:path";
 import { mkdir, rm, copyFile } from "node:fs/promises";
 import { db, all, one, run, id, dataDir, type Row } from "./db";
@@ -538,6 +539,92 @@ export async function api(req: Request): Promise<Response> {
   }
   if (parts[0] === "projects" && parts[1] && parts[2]) {
     const project = scopedRecord("projects", parts[1], pid);
+    if (parts[2] === "import-shots" && req.method === "POST") {
+      const b = await body(req);
+      let parsed: ReturnType<typeof parseShotMarkdown>;
+      try {
+        parsed = parseShotMarkdown(textField(b.text, "shot breakdown", 1_000_000));
+      } catch (error) {
+        throw new HttpError(400, (error as Error).message);
+      }
+      const existingScenes = all(
+        "SELECT id,heading,position FROM scenes WHERE project_id=? ORDER BY position,id",
+        project.id,
+      );
+      const matches = parsed.map((sc) => {
+        const target = existingScenes[sc.number - 1];
+        requireValue(target, "Scene " + sc.number + " doesn't exist in this project. Import the screenplay first.");
+        requireValue(
+          normalizedHeading(target.heading) === normalizedHeading(sc.heading),
+          "Scene " + sc.number + " does not match. Expected: " + target.heading + ". Found: " + sc.heading,
+        );
+        const existing = one(
+          "SELECT COUNT(*) AS n FROM shots WHERE scene_id=?",
+          target.id,
+        )!.n as number;
+        return {
+          number: sc.number,
+          heading: target.heading,
+          scene_id: target.id,
+          existing,
+          incoming: sc.shots.length,
+        };
+      });
+      const totalShots = matches.reduce((n, m) => n + m.incoming, 0);
+      if (b.preview === true) return json({ scenes: matches, totalShots });
+      requireValue(
+        b.mode === "empty" || b.mode === "append",
+        "Choose import mode (empty or append).",
+      );
+      requireValue(
+        Array.isArray(b.expected) &&
+          b.expected.length === matches.length &&
+          matches.every(
+            (m, i) =>
+              b.expected[i] &&
+              b.expected[i].scene_id === m.scene_id &&
+              b.expected[i].existing === m.existing,
+          ),
+        "Scenes or shots changed since preview. Preview the import again.",
+        409,
+      );
+      const created: string[] = [];
+      db.transaction(() => {
+        for (let i = 0; i < matches.length; i++) {
+          const target = matches[i], sc = parsed[i];
+          const current = one(
+            "SELECT COUNT(*) AS n,MAX(position) AS last FROM shots WHERE scene_id=?",
+            target.scene_id,
+          )!;
+          requireValue(
+            current.n === target.existing,
+            "Scene " + target.number + " changed during import. Preview again.",
+            409,
+          );
+          requireValue(
+            b.mode === "append" || current.n === 0,
+            "Scene " + target.number + " already has shots. Enable append or import into empty scenes.",
+            409,
+          );
+          const start = (current.last ?? -1) + 1;
+          for (let j = 0; j < sc.shots.length; j++) {
+            const sh = sc.shots[j], sid = id();
+            run(
+              "INSERT INTO shots(id,scene_id,title,action,dialogue,camera,continuity,duration,position) VALUES(?,?,?,?,?,?,?,?,?)",
+              sid, target.scene_id, sh.title, sh.action, sh.dialogue,
+              sh.camera, sh.continuity, sh.duration, start + j,
+            );
+            created.push(sid);
+          }
+        }
+        run(
+          "UPDATE projects SET updated_at=? WHERE id=?",
+          new Date().toISOString(),
+          project.id,
+        );
+      })();
+      return json({ imported: created.length, scenes: matches.length, firstShotId: created[0] }, 201);
+    }
     if (parts[2] === "import-screenplay" && req.method === "POST") {
       const b = await body(req),
         parsed = parseScreenplay(textField(b.text, "screenplay"));
