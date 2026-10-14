@@ -509,7 +509,7 @@ export async function api(req: Request): Promise<Response> {
         "SELECT * FROM jobs WHERE profile_id=? ORDER BY created_at DESC,id LIMIT 100",
         pid,
       ),
-      generatorConfigured: !!process.env.MOTHLIGHT_GENERATOR || seedanceConfigured(),
+      generatorConfigured: !!process.env.MOTHLIGHT_GENERATOR || seedanceConfigured() || imageConfigured("openai") || imageConfigured("google"),
       adapterConfigured: !!process.env.MOTHLIGHT_GENERATOR,
       seedanceConfigured: seedanceConfigured(),
       seedanceModels: availableSeedanceModels(),
@@ -971,12 +971,12 @@ export async function api(req: Request): Promise<Response> {
       requireValue(
         provider === "byteplus" ? b.kind === "video" && seedanceConfigured()
           : nativeImage ? b.kind === "image" && imageConfigured(provider)
-          : provider === "custom" && imageConfigured("custom"),
+          : !["byteplus", "openai", "google"].includes(provider) && imageConfigured("custom"),
         "Selected generation service is unavailable. Configure its API key or local adapter in Settings.",
         409,
       );
       if (nativeImage) {
-        const models = IMAGE_MODELS[provider];
+        const models = IMAGE_MODELS[provider as keyof typeof IMAGE_MODELS];
         requireValue(models.some((m) => m.id === b.model), "Unsupported image model.");
       }
       const frameTarget = b.kind === "image" ? (b.frameTarget || "storyboard") : null;
