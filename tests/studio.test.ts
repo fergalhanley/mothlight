@@ -8,6 +8,8 @@ delete process.env.MOTHLIGHT_HOSTED;
 delete process.env.MOTHLIGHT_GENERATOR;
 delete process.env.BYTEPLUS_MODELARK_API_KEY;
 delete process.env.MOTHLIGHT_SEEDANCE_MODELS;
+delete process.env.OPENAI_API_KEY;
+delete process.env.GEMINI_API_KEY;
 const { handle } = await import("../src/server/index");
 const { db, one, all, run, openDatabase } = await import("../src/server/db");
 const { createUser, cookie } = await import("../src/server/auth");
