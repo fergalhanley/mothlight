@@ -1,6 +1,7 @@
 import { mediaResponse } from "./media";
 import { parseScreenplay } from "./screenplay";
 import { parseShotMarkdown, normalizedHeading } from "./shot-markdown";
+import { assetKey, parseWorldAssetPack } from "./world-asset-import";
 import { basename, join } from "node:path";
 import { mkdir, rm, copyFile } from "node:fs/promises";
 import { db, all, one, run, id, dataDir, type Row } from "./db";
@@ -281,6 +282,11 @@ function validate(
           related.mime.startsWith("image/"),
           "Reference frames must be images.",
         );
+      if (key === "media_id" && table === "assets")
+        requireValue(
+          related.mime.startsWith("image/"),
+          "Asset cover must be an image.",
+        );
       if (key === "media_id" && table === "takes")
         requireValue(
           related.mime.startsWith("video/"),
@@ -486,7 +492,13 @@ export async function api(req: Request): Promise<Response> {
       assets: all(
         "SELECT * FROM assets WHERE profile_id=? ORDER BY kind,name",
         pid,
-      ),
+      ).map((a) => ({
+        ...a,
+        attachments: all(
+          "SELECT aa.*,m.filename,m.mime,m.size FROM asset_attachments aa JOIN media m ON m.id=aa.media_id WHERE aa.asset_id=? ORDER BY aa.position,aa.id",
+          a.id,
+        ),
+      })),
       media: all(
         "SELECT * FROM media WHERE profile_id=? ORDER BY created_at DESC,id",
         pid,
@@ -523,6 +535,11 @@ export async function api(req: Request): Promise<Response> {
           "audio/mp4",
           "audio/ogg",
           "audio/flac",
+          "text/plain",
+          "text/markdown",
+          "application/json",
+          "application/pdf",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         ].includes(file.type),
         "Unsupported media type.",
       );
@@ -795,6 +812,78 @@ export async function api(req: Request): Promise<Response> {
       return json({ ok: true });
     }
   }
+  if (parts[0] === "assets" && parts[1] === "import" && req.method === "POST") {
+    const b = await body(req);
+    let pack: ReturnType<typeof parseWorldAssetPack>;
+    try {
+      pack = parseWorldAssetPack(textField(b.text, "world asset pack", 1_000_000));
+    } catch (error) {
+      throw new HttpError(400, (error as Error).message);
+    }
+    const matches = () => {
+      const existing = new Map(
+        all("SELECT id,kind,name FROM assets WHERE profile_id=?", pid)
+          .map(a => [assetKey(a.kind, a.name), a]),
+      );
+      return pack.assets.map(a => {
+        const found = existing.get(assetKey(a.kind, a.name));
+        return { kind: a.kind, name: a.name, existing_id: found?.id ?? null, action: found ? "skip" : "create" };
+      });
+    };
+    const preview = matches();
+    if (b.preview === true) return json({
+      title: pack.title, assets: preview,
+      create: preview.filter(a => a.action === "create").length,
+      skip: preview.filter(a => a.action === "skip").length,
+    });
+    requireValue(Array.isArray(b.expected) && b.expected.length === preview.length &&
+      preview.every((a, i) => {
+        const e = b.expected[i];
+        return e && e.kind === a.kind && e.name === a.name && e.existing_id === a.existing_id;
+      }),
+      "World library changed since preview. Preview the import again.", 409,
+    );
+    const created: string[] = [];
+    db.transaction(() => {
+      const current = matches();
+      requireValue(current.every((a, i) => a.existing_id === preview[i].existing_id),
+        "World library changed during import. Preview again.", 409);
+      for (let i = 0; i < pack.assets.length; i++) {
+        const asset = pack.assets[i];
+        if (current[i].existing_id) continue;
+        const aid = id();
+        run(
+          "INSERT INTO assets(id,profile_id,kind,name,description,prompt,continuity) VALUES(?,?,?,?,?,?,?)",
+          aid,pid,asset.kind,asset.name,asset.description,asset.prompt,asset.continuity,
+        );
+        created.push(aid);
+      }
+    })();
+    return json({ created: created.length, skipped: preview.length - created.length }, 201);
+  }
+  if (parts[0] === "assets" && parts[1] && parts[2] === "attachments") {
+    const asset = scopedRecord("assets", parts[1], pid);
+    if (req.method === "POST" && !parts[3]) {
+      const b = await body(req);
+      requireValue(b.media_id, "Choose a reference file.");
+      const media = scopedRecord("media", b.media_id, pid);
+      const label = textField(b.label || media.filename, "label", 500).trim();
+      requireValue(label.length > 0, "Label required.");
+      const notes = textField(b.notes ?? "", "notes", 100_000);
+      const aid = id();
+      run(
+        "INSERT INTO asset_attachments(id,asset_id,media_id,label,notes,position) VALUES(?,?,?,?,?,(SELECT COALESCE(MAX(position),-1)+1 FROM asset_attachments WHERE asset_id=?))",
+        aid,asset.id,media.id,label,notes,asset.id,
+      );
+      return json(one("SELECT * FROM asset_attachments WHERE id=?", aid), 201);
+    }
+    if (req.method === "DELETE" && parts[3]) {
+      const found = one("SELECT id FROM asset_attachments WHERE id=? AND asset_id=?",parts[3],asset.id);
+      requireValue(found, "Attachment not found.", 404);
+      run("DELETE FROM asset_attachments WHERE id=?",found.id);
+      return json({ ok: true });
+    }
+  }
   if (
     parts[0] === "shots" &&
     parts[1] &&
@@ -857,6 +946,13 @@ export async function api(req: Request): Promise<Response> {
           referencePath: a.media_id
             ? mediaPath(scopedRecord("media", a.media_id, pid))
             : null,
+          attachments: all(
+            "SELECT aa.*,m.filename,m.mime,m.stored_name FROM asset_attachments aa JOIN media m ON m.id=aa.media_id WHERE aa.asset_id=? ORDER BY aa.position",
+            a.id,
+          ).map((ref) => ({
+            ...ref,
+            localPath: mediaPath(ref),
+          })),
         })),
         firstFrame: shot.storyboard_id
           ? mediaPath(scopedRecord("media", shot.storyboard_id, pid))
