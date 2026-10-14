@@ -125,13 +125,13 @@ async function init() {
   }
 }
 function authView(setup: boolean) {
-  app.innerHTML = `<main class="auth"><div class="auth-art"><div class="light-orbit"></div><span class="eyebrow">THE SPACE BETWEEN STORY AND SCREEN</span><h1>Bring your<br>stories to light.</h1><p>A considered workspace for the films only you can make.</p><div class="wordmark">✦ mothlight</div></div><section><span class="eyebrow">YOUR FILMMAKING STUDIO</span><h2>${setup ? "Make room for your next film." : "Welcome back."}</h2><p>${setup ? "Create your local studio account. Projects and media live on this machine." : "Sign in to your studio."}</p><form data-form="auth" data-setup="${setup}">${setup ? field("Your name", "name") : ""}${field("Email", "email", "", "email")}${field("Password · at least 12 characters", "password", "", "password")}<button class="button primary" type="submit">${setup ? "Create studio" : "Open studio"} <span>↗</span></button></form></section></main>`;
+  app.innerHTML = `<main class="auth"><div class="auth-art"><img class="auth-icon" src="/icon.png" alt="Moth with violet, pink, amber, and green wings" width="712" height="712"><span class="eyebrow">THE SPACE BETWEEN STORY AND SCREEN</span><h1>Bring your<br>stories to light.</h1><p>A considered workspace for the films only you can make.</p><div class="wordmark">mothlight</div></div><section><span class="eyebrow">YOUR FILMMAKING STUDIO</span><h2>${setup ? "Make room for your next film." : "Welcome back."}</h2><p>${setup ? "Create your local studio account. Projects and media live on this machine." : "Sign in to your studio."}</p><form data-form="auth" data-setup="${setup}">${setup ? field("Your name", "name") : ""}${field("Email", "email", "", "email")}${field("Password · at least 12 characters", "password", "", "password")}<button class="button primary" type="submit">${setup ? "Create studio" : "Open studio"} <span>↗</span></button></form></section></main>`;
 }
 function render() {
   const p = state.project,
     list = shots(),
     selected = list.filter((s) => s.selected_take_id).length;
-  app.innerHTML = `<div class="studio"><aside class="sidebar"><a class="brand" href="/">✦ <span>mothlight</span></a><span class="eyebrow">STUDIO PROFILE</span><select id="profile-switch" aria-label="Studio profile">${state.profiles.map((p) => `<option value="${p.id}" ${p.id === state.profile ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>${button("+ New profile", "profile-new", "", "link muted")}<div class="nav">${[
+  app.innerHTML = `<div class="studio"><aside class="sidebar"><a class="brand" href="/"><img class="brand-icon" src="/icon.png" alt="" width="40" height="40"><span>mothlight</span></a><span class="eyebrow">STUDIO PROFILE</span><select id="profile-switch" aria-label="Studio profile">${state.profiles.map((p) => `<option value="${p.id}" ${p.id === state.profile ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select>${button("+ New profile", "profile-new", "", "link muted")}<div class="nav">${[
     ["projects", "▣", "Projects"],
     ["library", "◇", "World library"],
     ["production", "◉", "Production"],
