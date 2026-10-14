@@ -821,9 +821,9 @@ export async function api(req: Request): Promise<Response> {
       throw new HttpError(400, (error as Error).message);
     }
     const matches = () => {
-      const existing = new Map(
+      const existing = new Map<string, Row>(
         all("SELECT id,kind,name FROM assets WHERE profile_id=?", pid)
-          .map(a => [assetKey(a.kind, a.name), a]),
+          .map((a): [string, Row] => [assetKey(a.kind, a.name), a]),
       );
       return pack.assets.map(a => {
         const found = existing.get(assetKey(a.kind, a.name));
