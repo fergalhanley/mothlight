@@ -110,7 +110,7 @@ export async function generateImage(provider: string, model: string, userPrompt:
       body.set("quality", "medium");
       body.set("output_format", "png");
       for (const ref of references) {
-        body.append("image[]", new File([ref.bytes], ref.path.split("/").pop() || "reference.png", { type: ref.mime }));
+        body.append("image[]", new File([Uint8Array.from(ref.bytes).buffer], ref.path.split("/").pop() || "reference.png", { type: ref.mime }));
       }
       response = await fetch("https://api.openai.com/v1/images/edits", { method: "POST", headers, body, signal: AbortSignal.timeout(20 * 60_000) });
     } else {
