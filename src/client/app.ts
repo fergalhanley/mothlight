@@ -227,7 +227,7 @@ function storyView() {
 }
 function shotView() {
   const sh = currentShot();
-  return `<div class="shot-layout"><section class="shot-list"><div class="section-heading"><h2>Scene & shot board</h2>${button("+ Scene", "scene-new")}</div>${state.project!.scenes.map((s: R, i: number) => `<div class="scene-group"><div class="scene-label"><span>${String(i + 1).padStart(2, "0")} &nbsp; ${esc(s.heading)}</span>${button("+", "shot-new", `data-scene="${s.id}"`, "icon-button")}${button("⋯", "scene-edit", `data-id="${s.id}"`, "icon-button")}</div><div class="shot-columns"><span>SHOT / ACTION</span><span>VISUAL</span><span>AUDIO</span></div>${s.shots.map((sh: R, j: number) => `<button class="shot-row ${sh.id === state.shot ? "selected" : ""}" data-action="select-shot" data-id="${sh.id}"><div><span class="eyebrow">${String(i + 1).padStart(2, "0")}.${String(j + 1).padStart(2, "0")} <span class="status ${sh.status}">${esc(sh.status)}</span></span><h3>${esc(sh.title)}</h3><p>${esc(sh.action || "Describe the moment.")}</p><span class="duration">${sh.duration}s · ${esc(sh.camera || "Camera undecided")}</span></div><div class="thumbnail">${sh.storyboard_id ? `<img src="${mediaUrl(sh.storyboard_id)}" alt="Storyboard">` : `<div class="thumbnail-empty">◇</div>`}<span>${sh.takes.length} take${sh.takes.length === 1 ? "" : "s"}${sh.selected_take_id ? " · selected" : ""}</span></div><div class="dialogue-cell">${sh.dialogue ? `<span class="audio-glyph">≋</span><p>${esc(sh.dialogue)}</p>` : '<span class="muted">No dialogue</span>'}</div></button>`).join("") || `<div class="scene-empty">${button("+ Add the first shot", "shot-new", `data-scene="${s.id}"`, "link")}</div>`}</div>`).join("") || `<div class="empty-panel"><h2>The frame starts here.</h2><p>Create a scene to begin planning your film.</p>${button("+ Add a scene", "scene-new", "", "button primary")}</div>`}</section><aside class="inspector">${sh ? shotInspector(sh) : `<div class="inspector-empty"><span>◇</span><h3>A closer look.</h3><p>Select a shot to shape its action, camera, references and takes.</p></div>`}</aside></div>`;
+  return `<div class="shot-layout"><section class="shot-list"><div class="section-heading"><h2>Scene & shot board</h2><div class="actions">${button("Import shots", "shots-import")}${button("+ Scene", "scene-new")}</div></div>${state.project!.scenes.map((s: R, i: number) => `<div class="scene-group"><div class="scene-label"><span>${String(i + 1).padStart(2, "0")} &nbsp; ${esc(s.heading)}</span>${button("+", "shot-new", `data-scene="${s.id}"`, "icon-button")}${button("⋯", "scene-edit", `data-id="${s.id}"`, "icon-button")}</div><div class="shot-columns"><span>SHOT / ACTION</span><span>VISUAL</span><span>AUDIO</span></div>${s.shots.map((sh: R, j: number) => `<button class="shot-row ${sh.id === state.shot ? "selected" : ""}" data-action="select-shot" data-id="${sh.id}"><div><span class="eyebrow">${String(i + 1).padStart(2, "0")}.${String(j + 1).padStart(2, "0")} <span class="status ${sh.status}">${esc(sh.status)}</span></span><h3>${esc(sh.title)}</h3><p>${esc(sh.action || "Describe the moment.")}</p><span class="duration">${sh.duration}s · ${esc(sh.camera || "Camera undecided")}</span></div><div class="thumbnail">${sh.storyboard_id ? `<img src="${mediaUrl(sh.storyboard_id)}" alt="Storyboard">` : `<div class="thumbnail-empty">◇</div>`}<span>${sh.takes.length} take${sh.takes.length === 1 ? "" : "s"}${sh.selected_take_id ? " · selected" : ""}</span></div><div class="dialogue-cell">${sh.dialogue ? `<span class="audio-glyph">≋</span><p>${esc(sh.dialogue)}</p>` : '<span class="muted">No dialogue</span>'}</div></button>`).join("") || `<div class="scene-empty">${button("+ Add the first shot", "shot-new", `data-scene="${s.id}"`, "link")}</div>`}</div>`).join("") || `<div class="empty-panel"><h2>The frame starts here.</h2><p>Create a scene to begin planning your film.</p>${button("+ Add a scene", "scene-new", "", "button primary")}</div>`}</section><aside class="inspector">${sh ? shotInspector(sh) : `<div class="inspector-empty"><span>◇</span><h3>A closer look.</h3><p>Select a shot to shape its action, camera, references and takes.</p></div>`}</aside></div>`;
 }
 function shotInspector(sh: R) {
   const take = sh.takes.find((t: R) => t.id === sh.selected_take_id);
@@ -405,6 +405,17 @@ async function action(el: HTMLElement) {
     state.shot = rid;
     if (a === "cut-shot") state.tab = "shots";
     render();
+    return;
+  }
+  if (a === "shots-import") {
+    modal(
+      "Import shot breakdown",
+      '<label>Markdown file<input id="shots-import-file" type="file" accept=".md,text/markdown,text/plain"></label>' +
+        area("Or paste Markdown shot breakdown", "text", "", 12) +
+        '<p class="muted">Scene numbers and headings must match the screenplay. Preview before importing; existing shots are never overwritten.</p>',
+      "shots-import-preview",
+    );
+    dialog.querySelector<HTMLButtonElement>('button[type="submit"]')!.textContent = "Preview import";
     return;
   }
   if (a === "screenplay-import") {
@@ -607,6 +618,53 @@ async function submit(form: HTMLFormElement) {
     b: R = Object.fromEntries(values.entries()),
     rid = form.dataset.id;
   const num = (...keys: string[]) => keys.forEach((k) => (b[k] = Number(b[k])));
+  if (type === "shots-import-preview") {
+    const source = String(b.text || "");
+    const previewResult = await request(
+      url("projects/" + state.project!.id + "/import-shots"),
+      "POST",
+      { text: source, preview: true },
+    );
+    const matches: R[] = previewResult.scenes;
+    const occupied = matches.some((m) => m.existing > 0);
+    const rows = matches.map((m) =>
+      "<p><strong>" + String(m.number).padStart(2, "0") + " · " + esc(m.heading) +
+      "</strong><span class=\"muted\"> — " + m.incoming + " incoming, " + m.existing + " existing</span></p>"
+    ).join("");
+    dialog.close();
+    modal(
+      "Review shot import",
+      "<p><strong>" + previewResult.totalShots + " shots across " + matches.length +
+        " matched scenes.</strong> Nothing has been imported yet.</p>" +
+        '<div style="max-height:260px;overflow:auto">' + rows + "</div>" +
+        (occupied
+          ? '<label class="check-label"><input type="checkbox" name="append" value="yes"><span>Append to existing shots (may create duplicates if this file was imported before)</span></label>'
+          : '<p class="muted">All matched scenes are empty; shots will be added in order.</p>') +
+        '<textarea name="text" hidden>' + esc(source) + "</textarea>" +
+        '<input type="hidden" name="expected" value="' +
+        esc(JSON.stringify(matches.map((m) => ({ scene_id: m.scene_id, existing: m.existing })))) + '">',
+      "shots-import-confirm",
+    );
+    dialog.querySelector<HTMLButtonElement>('button[type="submit"]')!.textContent = "Import shots";
+    return;
+  }
+  if (type === "shots-import-confirm") {
+    const result = await request(
+      url("projects/" + state.project!.id + "/import-shots"),
+      "POST",
+      {
+        text: String(b.text || ""),
+        mode: b.append === "yes" ? "append" : "empty",
+        expected: JSON.parse(String(b.expected)),
+      },
+    );
+    state.shot = result.firstShotId;
+    state.tab = "shots";
+    dialog.close();
+    await loadWorkspace();
+    notice("Imported " + result.imported + " shots into " + result.scenes + " scenes.");
+    return;
+  }
   if (type === "auth") {
     state.user = await request(
       form.dataset.setup === "true" ? "/api/auth/setup" : "/api/auth/login",
@@ -777,6 +835,18 @@ document.addEventListener("submit", async (e) => {
   } finally {
     if (btn) btn.disabled = false;
   }
+});
+dialog.addEventListener("change", async (e) => {
+  const input = e.target as HTMLInputElement;
+  if (input.id !== "shots-import-file" || !input.files?.length) return;
+  const file = input.files[0];
+  if (file.size > 1_000_000) {
+    notice("Shot breakdown must be 1 MB or smaller.", true);
+    input.value = "";
+    return;
+  }
+  const textarea = dialog.querySelector<HTMLTextAreaElement>('textarea[name="text"]');
+  if (textarea) textarea.value = await file.text();
 });
 dialog.addEventListener("click", (e) => {
   if (e.target === dialog) dialog.close();
