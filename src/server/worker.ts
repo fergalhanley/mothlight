@@ -4,6 +4,7 @@ import { all, one, run, id, dataDir, type Row } from "./db";
 import { projectShots, frameCount } from "./export";
 import { requireValue } from "./auth";
 import { generateSeedance } from "./seedance";
+import { generateImage } from "./images";
 export const mediaPath = (m: Row) => join(dataDir, "media", m.stored_name);
 let busy = false;
 export async function execProcess(
@@ -167,8 +168,27 @@ async function renderCut(job: Row) {
   }
 }
 async function generate(job: Row) {
+  const input = JSON.parse(job.input_json);
+  if (job.kind === "image" && input.frameTarget === "endframe") {
+    if (input.dependsOnJobId) {
+      const dependency = one("SELECT status FROM jobs WHERE id=? AND shot_id=?", input.dependsOnJobId, job.shot_id);
+      requireValue(dependency?.status === "succeeded", "Storyboard generation failed or was cancelled; generate the storyboard before the end frame.");
+    }
+    // Resolve the storyboard at execution time so "both" uses the newly generated opening frame.
+    const shot = one("SELECT storyboard_id FROM shots WHERE id=?", job.shot_id);
+    input.firstFrame = shot?.storyboard_id
+      ? mediaPath(one("SELECT * FROM media WHERE id=?", shot.storyboard_id)!)
+      : null;
+    run("UPDATE jobs SET input_json=? WHERE id=?", JSON.stringify(input), job.id);
+  }
+  if (job.kind === "image" && (job.provider === "openai" || job.provider === "google")) {
+    const result = await generateImage(job.provider, job.model, job.prompt, input);
+    const extension = result.mime === "image/jpeg" ? "jpg" : result.mime === "image/webp" ? "webp" : "png";
+    const media = await storeMedia(job.profile_id, result.bytes, `frame-${job.id}.${extension}`, result.mime);
+    // Image API pricing is account-based; do not invent a charge without billing data.
+    return { media, cost: 0 };
+  }
   if (job.provider === "byteplus") {
-    const input = JSON.parse(job.input_json);
     const video = await generateSeedance(job.model, job.prompt, input, (task) => {
       input.byteplusTask = task;
       run("UPDATE jobs SET input_json=? WHERE id=?", JSON.stringify(input), job.id);
@@ -187,7 +207,7 @@ async function generate(job: Row) {
   try {
     // Adapter input/output contract is intentionally provider-neutral. No shell interpolation.
     const input = {
-      ...JSON.parse(job.input_json),
+      ...input,
       jobId: job.id,
       kind: job.kind,
       provider: job.provider,
@@ -244,12 +264,16 @@ export async function tick() {
           job.prompt,
           cost,
         );
-      if (job.kind === "image")
-        run(
-          "UPDATE shots SET storyboard_id=?,status=CASE WHEN status='planned' THEN 'storyboard' ELSE status END WHERE id=?",
-          media.id,
-          job.shot_id,
-        );
+      if (job.kind === "image") {
+        const target = JSON.parse(job.input_json).frameTarget || "storyboard";
+        if (target === "endframe")
+          run("UPDATE shots SET end_frame_id=? WHERE id=?", media.id, job.shot_id);
+        else
+          run(
+            "UPDATE shots SET storyboard_id=?,status=CASE WHEN status='planned' THEN 'storyboard' ELSE status END WHERE id=?",
+            media.id, job.shot_id,
+          );
+      }
       run(
         "UPDATE jobs SET status='succeeded',output_media_id=?,cost=? WHERE id=?",
         media.id,
