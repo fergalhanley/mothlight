@@ -104,7 +104,7 @@ function preview(mid: string | undefined, cls = "") {
     ? `<video class="frame ${cls}" src="${mediaUrl(mid)}" controls preload="metadata"></video>`
     : m?.mime.startsWith("audio/")
       ? `<audio src="${mediaUrl(mid)}" controls></audio>`
-      : m?.mime.startsWith("image/")
+      : m?.mime.startsWith("image/") && m.mime !== "image/svg+xml"
         ? `<img class="frame ${cls}" src="${mediaUrl(mid)}" alt="Reference frame">`
         : `<a class="button" href="${mediaUrl(mid)}" download="${esc(m?.filename || "file")}">Download ${esc(m?.filename || "file")}</a>`;
 }
