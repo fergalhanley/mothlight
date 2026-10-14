@@ -294,7 +294,7 @@ function projectModal(p?: R) {
         ["feature", "Feature"],
       ],
       p?.kind || "short",
-    )}${select("Series", "series_id", [["", "Standalone"], ...state.workspace.series.map((s: R) => [s.id, s.title])], p?.series_id || "")}${area("Logline", "logline", p?.logline, 3)}<div class="form-grid">${select(
+    )}${select("Series", "series_id", [["", "Standalone"], ...state.workspace.series.map((s: R) => [s.id, s.title])], p?.series_id || "")}${field("Or create a new series (optional)", "new_series_title")}${area("Logline", "logline", p?.logline, 3)}<div class="form-grid">${select(
       "Frame rate",
       "fps",
       [
@@ -757,6 +757,24 @@ async function submit(form: HTMLFormElement) {
     state.profiles = await request("/api/profiles");
   }
   if (type === "project") {
+    const newSeriesTitle = String(b.new_series_title || "").trim();
+    delete b.new_series_title;
+    if (newSeriesTitle) {
+      // Resolve from the server: another tab may already have created the series.
+      const latest = await request(url("workspace"));
+      const match = latest.series.find(
+        (series: R) => series.title.trim().toLocaleLowerCase() === newSeriesTitle.toLocaleLowerCase(),
+      );
+      if (match) {
+        b.series_id = match.id;
+      } else {
+        const created = await request(url("series"), "POST", {
+          title: newSeriesTitle,
+          bible: "",
+        });
+        b.series_id = created.id;
+      }
+    }
     num("fps", "width", "height");
     b.series_id = b.series_id || null;
     const p = await request(
@@ -774,12 +792,35 @@ async function submit(form: HTMLFormElement) {
       "POST",
       b,
     );
-  if (type === "series")
-    await request(
+  if (type === "series") {
+    const title = String(b.title || "").trim();
+    if (!title) throw new Error("Enter a series title.");
+    const latest = await request(url("workspace"));
+    const duplicate = !rid && latest.series.find(
+      (series: R) => series.title.trim().toLocaleLowerCase() === title.toLocaleLowerCase(),
+    );
+    if (duplicate) {
+      dialog.close();
+      await loadWorkspace();
+      notice("Series “" + duplicate.title + "” already exists in this profile and is available in Film settings.");
+      return;
+    }
+    const saved = await request(
       url(`series${rid ? "/" + rid : ""}`),
       rid ? "PATCH" : "POST",
-      b,
+      { title, bible: String(b.bible || "") },
     );
+    // Do not report success until the active profile's workspace includes the record.
+    const refreshed = await request(url("workspace"));
+    if (!refreshed.series.some((series: R) => series.id === saved.id))
+      throw new Error("Series was saved but is not visible in this profile. Refresh and check the selected profile.");
+    dialog.close();
+    await loadWorkspace();
+    notice("Series “" + saved.title + "” " + (rid ? "updated" : "created") +
+      " in " + (state.profiles.find((profile: R) => profile.id === state.profile)?.name || "this profile") +
+      ". It is now available in Film settings.");
+    return;
+  }
   if (type === "asset")
     await request(
       url(`assets${rid ? "/" + rid : ""}`),
