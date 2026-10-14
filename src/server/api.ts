@@ -968,6 +968,8 @@ export async function api(req: Request): Promise<Response> {
       );
       const provider = textField(b.provider || "custom", "provider", 100);
       const nativeImage = provider === "openai" || provider === "google";
+      if (provider === "byteplus")
+        requireValue(b.kind === "video", "Seedance generates video takes, not storyboard images.");
       requireValue(
         provider === "byteplus" ? b.kind === "video" && seedanceConfigured()
           : nativeImage ? b.kind === "image" && imageConfigured(provider)
