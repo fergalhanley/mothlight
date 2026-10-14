@@ -370,6 +370,65 @@ test("scene and shot reordering is complete, ordered and rejects duplicates", as
       .id,
   ).toBe(sh[1].id);
 });
+test("shot Markdown preview maps repeated headings by ordinal; import is safe and transactional", async () => {
+  const film = await post(p("projects"), { title: "Import film" });
+  const sc1 = await post(p("scenes"), {
+    project_id: film.id, position: 0, heading: "INT. RYAN'S BEDROOM - NIGHT",
+  });
+  const sc2 = await post(p("scenes"), {
+    project_id: film.id, position: 1, heading: "INT. RYAN'S BEDROOM - NIGHT",
+  });
+  const markdown = [
+    "# Shot breakdown",
+    "## Scene 01 — INT. RYAN’S BEDROOM - NIGHT",
+    "### 01.01 · 5s · Slow push",
+    "**Title:** Rupert arrives",
+    "**Action:** Ryan opens the AI interface.",
+    "**Sound/dialogue:** RUPERT: Looking.",
+    "**Continuity/assets:** Rupert avatar; Ryan workstation.",
+    "## Scene 02 — INT. RYAN'S BEDROOM - NIGHT",
+    "### 02.01 · 3.5s · Close-up",
+    "**Title:** Ryan smiles",
+    "**Action:** Ryan smirks at the locked door.",
+    "**Sound/dialogue:** Metal music.",
+    "**Continuity/assets:** Ryan",
+  ].join("\n");
+  const endpoint = p("projects/" + film.id + "/import-shots");
+  const preview = await call(endpoint, "POST", { text: markdown, preview: true });
+  expect(preview.status).toBe(200);
+  expect(preview.data.totalShots).toBe(2);
+  expect(preview.data.scenes.map((v: any) => v.scene_id)).toEqual([sc1.id, sc2.id]);
+  expect(preview.data.scenes.map((v: any) => v.existing)).toEqual([0, 0]);
+
+  expect((await call(endpoint, "POST", {
+    text: markdown, preview: true,
+  }, viewerSession)).status).toBe(403);
+  const importBody = {
+    text: markdown,
+    mode: "empty",
+    expected: preview.data.scenes.map((v: any) => ({ scene_id: v.scene_id, existing: v.existing })),
+  };
+  expect((await call(endpoint, "POST", {
+    ...importBody, text: markdown.replace("Scene 02", "Scene 03"),
+  })).status).toBe(400);
+  expect((await call(endpoint, "POST", importBody)).status).toBe(201);
+  const doc = (await call(p("projects/" + film.id + "/document"))).data;
+  expect(doc.scenes[0].shots.map((v: any) => v.title)).toEqual(["Rupert arrives"]);
+  expect(doc.scenes[1].shots[0].duration).toBe(3.5);
+  expect(doc.scenes[0].shots[0].continuity).toContain("Rupert avatar");
+  expect((await call(endpoint, "POST", importBody)).status).toBe(409);
+  expect((await call(endpoint, "POST", { ...importBody, mode: "append" })).status).toBe(409);
+  const secondPreview = await call(endpoint, "POST", { text: markdown, preview: true });
+  const append = await call(endpoint, "POST", {
+    text: markdown,
+    mode: "append",
+    expected: secondPreview.data.scenes.map((v: any) => ({ scene_id: v.scene_id, existing: v.existing })),
+  });
+  expect(append.status).toBe(201);
+  const final = (await call(p("projects/" + film.id + "/document"))).data;
+  expect(final.scenes.map((sc: any) => sc.shots.length)).toEqual([2, 2]);
+  expect(final.scenes[0].shots.map((v: any) => v.position)).toEqual([0, 1]);
+});
 test("selected takes assemble into a frame-accurate rough cut with sound and a portable Resolve handoff", async () => {
   for (const sh of all("SELECT * FROM shots WHERE scene_id=?", scene.id)) {
     const take = await post(p("takes"), {
