@@ -521,6 +521,16 @@ export async function api(req: Request): Promise<Response> {
         file instanceof File && file.size > 0 && file.size <= 500 * 1024 * 1024,
         "Choose a file up to 500 MB.",
       );
+      const extension = file instanceof File ? file.name.split(".").pop()?.toLowerCase() : "";
+      const extTypes: Record<string,string> = {
+        md: "text/markdown", txt: "text/plain", json: "application/json",
+        pdf: "application/pdf", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        glb: "model/gltf-binary", gltf: "model/gltf+json",
+        zip: "application/zip", svg: "image/svg+xml",
+      };
+      const mime = file instanceof File
+        ? (file.type && file.type !== "application/octet-stream" ? file.type : extTypes[extension || ""] || "application/octet-stream")
+        : "";
       requireValue(
         [
           "image/png",
@@ -540,10 +550,15 @@ export async function api(req: Request): Promise<Response> {
           "application/json",
           "application/pdf",
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ].includes(file.type),
+          "application/zip",
+          "application/octet-stream",
+          "model/gltf-binary",
+          "model/gltf+json",
+          "image/svg+xml",
+        ].includes(mime),
         "Unsupported media type.",
       );
-      const media = await storeMedia(pid, file, basename(file.name), file.type);
+      const media = await storeMedia(pid, file, basename(file.name), mime);
       const localPath = form.get("localPath");
       if (typeof localPath === "string")
         run(
