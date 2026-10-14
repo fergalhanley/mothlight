@@ -245,7 +245,7 @@ export async function tick() {
   busy = true;
   try {
     const job = one(
-      "SELECT * FROM jobs WHERE status='queued' ORDER BY created_at,id LIMIT 1",
+      "SELECT * FROM jobs WHERE status='queued' ORDER BY created_at,rowid LIMIT 1",
     );
     if (!job) return;
     run("UPDATE jobs SET status='running' WHERE id=?", job.id);
