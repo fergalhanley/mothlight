@@ -429,6 +429,71 @@ test("shot Markdown preview maps repeated headings by ordinal; import is safe an
   expect(final.scenes.map((sc: any) => sc.shots.length)).toEqual([2, 2]);
   expect(final.scenes[0].shots.map((v: any) => v.position)).toEqual([0, 1]);
 });
+test("world asset packs preview, safely skip existing entries and accept multiple reference types", async () => {
+  const content = JSON.stringify({
+    version: 1, title: "Fates Abound test bible",
+    assets: [
+      { kind: "character", name: "Ryan Altair", description: "Young hacker", prompt: "Animated portrait", continuity: "Same outfit" },
+      { kind: "prop", name: "Cromwell", description: "Corporate model", prompt: "Dark dashboard", continuity: "Same wordmark" },
+    ],
+  });
+  const endpoint = p("assets/import");
+  const preview = await call(endpoint, "POST", { text: content, preview: true });
+  expect(preview.status).toBe(200);
+  expect(preview.data.create).toBe(2);
+  expect(preview.data.skip).toBe(0);
+  expect((await call(endpoint, "POST", { text: content, preview: true }, viewerSession)).status).toBe(403);
+  const expected = preview.data.assets.map((a: any) => ({
+    kind: a.kind, name: a.name, existing_id: a.existing_id,
+  }));
+  const imported = await call(endpoint, "POST", { text: content, expected });
+  expect(imported.status).toBe(201);
+  expect(imported.data.created).toBe(2);
+  const after = await call(endpoint, "POST", { text: content, preview: true });
+  expect(after.data.create).toBe(0);
+  expect(after.data.skip).toBe(2);
+  expect((await call(endpoint, "POST", { text: content, expected })).status).toBe(409);
+  const existingExpected = after.data.assets.map((a: any) => ({
+    kind: a.kind, name: a.name, existing_id: a.existing_id,
+  }));
+  const again = await call(endpoint, "POST", { text: content, expected: existingExpected });
+  expect(again.status).toBe(201);
+  expect(again.data.created).toBe(0);
+  expect(again.data.skipped).toBe(2);
+  const workspace = (await call(p("workspace"))).data;
+  const ryan = workspace.assets.find((a: any) => a.name === "Ryan Altair");
+  const cromwell = workspace.assets.find((a: any) => a.name === "Cromwell");
+  expect(ryan.prompt).toBe("Animated portrait");
+  expect(cromwell.continuity).toBe("Same wordmark");
+  await call(p("assets/" + ryan.id), "PATCH", { description: "User-edited canon" });
+  await call(endpoint, "POST", { text: content, expected: existingExpected });
+  expect((await call(p("assets/" + ryan.id))).data.description).toBe("User-edited canon");
+
+  const f = new FormData();
+  f.set("file", new File(["Character concept notes."], "ryan.md", { type: "text/markdown" }));
+  const uploaded = await call(p("media"), "POST", f);
+  expect(uploaded.status).toBe(201);
+  const refEndpoint = p("assets/" + ryan.id + "/attachments");
+  expect((await call(refEndpoint, "POST", {
+    media_id: uploaded.data.id, label: "Character concept", notes: "Draft",
+  }, viewerSession)).status).toBe(403);
+  const attached = await call(refEndpoint, "POST", {
+    media_id: uploaded.data.id, label: "Character concept", notes: "Draft",
+  });
+  expect(attached.status).toBe(201);
+  const attached2 = await call(refEndpoint, "POST", {
+    media_id: video.id, label: "Motion test", notes: "Provisional",
+  });
+  expect(attached2.status).toBe(201);
+  const refs = (await call(p("workspace"))).data.assets.find((a: any) => a.id === ryan.id).attachments;
+  expect(refs.map((a: any) => a.label)).toEqual(["Character concept", "Motion test"]);
+  const download = await call(p("media/" + uploaded.data.id));
+  expect(download.headers.get("content-disposition")).toContain("attachment");
+  expect((await call(refEndpoint + "/" + attached.data.id, "DELETE")).status).toBe(200);
+  const remaining = (await call(p("workspace"))).data.assets.find((a: any) => a.id === ryan.id).attachments;
+  expect(remaining).toHaveLength(1);
+  expect(remaining[0].label).toBe("Motion test");
+});
 test("selected takes assemble into a frame-accurate rough cut with sound and a portable Resolve handoff", async () => {
   for (const sh of all("SELECT * FROM shots WHERE scene_id=?", scene.id)) {
     const take = await post(p("takes"), {
