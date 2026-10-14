@@ -206,7 +206,7 @@ async function generate(job: Row) {
   await mkdir(work, { recursive: true });
   try {
     // Adapter input/output contract is intentionally provider-neutral. No shell interpolation.
-    const input = {
+    const adapterInput = {
       ...input,
       jobId: job.id,
       kind: job.kind,
@@ -215,7 +215,7 @@ async function generate(job: Row) {
       prompt: job.prompt,
       outputDirectory: work,
     };
-    const raw = await execProcess([adapter], { stdin: JSON.stringify(input) });
+    const raw = await execProcess([adapter], { stdin: JSON.stringify(adapterInput) });
     const result = JSON.parse(raw);
     requireValue(
       typeof result.outputPath === "string" &&
