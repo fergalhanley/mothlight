@@ -340,7 +340,7 @@ function cueFields(a?: R) {
   )}<div class="form-grid">${field("Timeline offset (s)", "offset", a?.offset || 0, "number")}${field("Source trim (s)", "trim_in", a?.trim_in || 0, "number")}${field("Duration (s)", "duration", a?.duration || 5, "number")}${field("Volume (0–4)", "volume", a?.volume ?? 1, "number")}</div>`;
 }
 async function uploadModal(context: string, assetId = "") {
-  let content = `<label>Media file<input name="file" type="file" required accept="${context === "take" ? "video/*" : context === "audio" ? "audio/*" : context === "storyboard" || context === "endframe" || context === "asset" ? "image/*" : "image/*,audio/*,video/*,.txt,.md,.json,.pdf,.docx"}"></label>${field("Original local path (optional, for Resolve relinking)", "localPath")}`;
+  let content = `<label>Media file<input name="file" type="file" required accept="${context === "take" ? "video/*" : context === "audio" ? "audio/*" : context === "storyboard" || context === "endframe" || context === "asset" ? "image/*" : context === "asset-attachment" ? "*/*" : "image/*,audio/*,video/*,.txt,.md,.json,.pdf,.docx,.zip,.glb"}"></label>${field("Original local path (optional, for Resolve relinking)", "localPath")}`;
   if (context === "asset-attachment")
     content += field("Reference label", "label") + area("Reference notes", "notes", "", 3);
   if (context === "take")
