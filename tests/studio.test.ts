@@ -182,6 +182,44 @@ test("first-user setup closes after bootstrap; passwords are hashed; sessions ca
   expect((await call("/auth/logout", "POST", {}, c)).status).toBe(200);
   expect((await call("/me", "GET", undefined, c)).status).toBe(401);
 });
+test("series created in a profile appear in Film settings and remain linked to a project", async () => {
+  const created = await post(p("series"), {
+    title: "Fates Abound",
+    bible: "Shared world and character lore.",
+  });
+  expect(created.id).toBeTruthy();
+  expect(created.title).toBe("Fates Abound");
+  const workspace = (await call(p("workspace"))).data;
+  expect(workspace.series.some((item: any) => item.id === created.id && item.title === "Fates Abound")).toBe(true);
+
+  const film = await post(p("projects"), { title: "The Forecast" });
+  const linked = await call(p("projects/" + film.id), "PATCH", {
+    series_id: created.id,
+  });
+  expect(linked.status).toBe(200);
+  expect(linked.data.series_id).toBe(created.id);
+  const document = (await call(p("projects/" + film.id + "/document"))).data;
+  expect(document.series_id).toBe(created.id);
+
+  // Editing the series updates the same ID, preserving the project's association.
+  const edited = await call(p("series/" + created.id), "PATCH", {
+    title: "Fates Abound — Revised",
+  });
+  expect(edited.status).toBe(200);
+  const refreshed = (await call(p("workspace"))).data;
+  expect(refreshed.series.find((item: any) => item.id === created.id)?.title).toBe("Fates Abound — Revised");
+  expect(refreshed.projects.find((item: any) => item.id === film.id)?.series_id).toBe(created.id);
+
+  // Series belong to the current profile, not every connected profile.
+  const other = (await call("/profiles/" + otherProfile + "/workspace", "GET", undefined, outsiderSession)).data;
+  expect(other.series.some((item: any) => item.id === created.id)).toBe(false);
+  expect((await call(p("series"), "POST", { title: "Forbidden" }, viewerSession)).status).toBe(403);
+  expect((await call(p("series"), "POST", { title: "" })).status).toBe(400);
+
+  // Persistence in the underlying SQLite database.
+  expect(one("SELECT title FROM series WHERE id=? AND profile_id=?", created.id, profile)?.title)
+    .toBe("Fates Abound — Revised");
+});
 test("profile boundary covers projects, media and descendants; viewers cannot mutate", async () => {
   expect(
     (
