@@ -952,6 +952,51 @@ input[type="file"] {
   font-size: 50px;
   color: #b69bcc;
 }
+.asset-card details {
+  margin-top: 17px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.asset-card details > summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--muted);
+}
+.asset-attachment {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+.asset-attachment strong {
+  display: block;
+  font-size: 12px;
+}
+.asset-attachment small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.asset-attachment .frame {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  margin-top: 9px;
+}
+.asset-attachment audio,
+.asset-attachment video {
+  width: 100%;
+}
+.asset-attachment p {
+  min-height: 0;
+  margin: 8px 0;
+}
+.asset-attachment .actions {
+  margin-top: 8px;
+}
 .media-shelf {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
