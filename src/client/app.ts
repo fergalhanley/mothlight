@@ -31,7 +31,7 @@ const esc = (s: unknown) =>
 const url = (path: string) => `/api/profiles/${state.profile}/${path}`;
 const mediaUrl = (mid: string) => url(`media/${mid}`);
 const money = (n: number) => `$${n.toFixed(2)}`;
-const generationCost = (record: R) => record.provider === "byteplus" && !record.cost ? "See BytePlus billing" : money(record.cost);
+const generationCost = (record: R) => ["byteplus", "openai", "google"].includes(record.provider) && !record.cost ? "See provider billing" : money(record.cost);
 const field = (
   label: string,
   name: string,
@@ -235,7 +235,7 @@ function shotView() {
 }
 function shotInspector(sh: R) {
   const take = sh.takes.find((t: R) => t.id === sh.selected_take_id);
-  return `<div class="inspector-header"><span class="eyebrow">SHOT DETAILS</span><div>${button("↑", "shot-up", `data-id="${sh.id}"`, "icon-button")}${button("↓", "shot-down", `data-id="${sh.id}"`, "icon-button")}</div></div><h2>${esc(sh.title)}</h2>${preview(take?.media_id || sh.storyboard_id)}<div class="actions">${button("Storyboard", "upload", `data-context="storyboard"`)}${button("End frame", "upload", `data-context="endframe"`)}${button("Generate", "generate", "", "button accent")}</div>${sh.end_frame_id ? `<details><summary>End-frame reference</summary>${preview(sh.end_frame_id)}</details>` : ""}<form data-form="shot">${field("Shot title", "title", sh.title)}<div class="form-grid">${field("Duration (seconds)", "duration", sh.duration, "number")}${select(
+  return `<div class="inspector-header"><span class="eyebrow">SHOT DETAILS</span><div>${button("↑", "shot-up", `data-id="${sh.id}"`, "icon-button")}${button("↓", "shot-down", `data-id="${sh.id}"`, "icon-button")}</div></div><h2>${esc(sh.title)}</h2>${preview(take?.media_id || sh.storyboard_id)}<div class="actions">${button("Import storyboard", "upload", `data-context="storyboard"`)}${button("Import end frame", "upload", `data-context="endframe"`)}${button("Generate frames", "generate-frames", "", "button accent")}</div>${sh.end_frame_id ? `<details><summary>End-frame reference</summary>${preview(sh.end_frame_id)}</details>` : ""}<form data-form="shot">${field("Shot title", "title", sh.title)}<div class="form-grid">${field("Duration (seconds)", "duration", sh.duration, "number")}${select(
     "Stage",
     "status",
     ["planned", "storyboard", "production", "review", "approved"].map((x) => [
@@ -243,7 +243,7 @@ function shotInspector(sh: R) {
       x,
     ]),
     sh.status,
-  )}</div>${area("Action", "action", sh.action, 3)}${area("Character dialogue", "dialogue", sh.dialogue, 3)}${field("Camera & movement", "camera", sh.camera)}${area("Generation prompt", "prompt", sh.prompt, 4)}${area("Avoid / negative prompt", "negative_prompt", sh.negative_prompt, 2)}${area("Continuity notes", "continuity", sh.continuity, 2)}<button class="button primary">Save shot</button></form><div class="section-heading"><h3>World references</h3></div><form data-form="shot-assets"><div class="references">${state.workspace.assets.map((a: R) => `<label class="check-label"><input type="checkbox" name="asset" value="${a.id}" ${sh.assets.some((v: R) => v.id === a.id) ? "checked" : ""}><span>${esc(a.name)}<small>${esc(a.kind)}</small></span></label>`).join("") || '<p class="muted">Build your world library to link characters, locations and styles.</p>'}</div><button class="button">Save references</button></form><div class="section-heading"><h3>Takes <span>${sh.takes.length}</span></h3>${button("+ Import", "upload", `data-context="take"`, "link")}</div><div class="takes">${sh.takes.map((t: R) => `<article class="take ${t.id === sh.selected_take_id ? "chosen" : ""}">${preview(t.media_id)}<div class="take-heading"><strong>${esc(t.label)}</strong><span>${generationCost(t)}</span></div><p class="muted">${esc(t.provider)} ${esc(t.model)} · trim ${t.trim_in}s</p>${t.notes ? `<p>${esc(t.notes)}</p>` : ""}<div class="actions">${button(t.id === sh.selected_take_id ? "✓ Selected" : "Select take", "take-select", `data-id="${t.id}"`, t.id === sh.selected_take_id ? "button accent" : "button")}${button("Notes & trim", "take-edit", `data-id="${t.id}"`)}${button("×", "delete", `data-table="takes" data-id="${t.id}"`, "icon-button danger")}</div></article>`).join("") || '<p class="muted">Bring in a generated clip to compare and select takes.</p>'}</div><div class="inspector-footer">${button("Delete shot", "delete", `data-table="shots" data-id="${sh.id}"`, "link danger")}</div>`;
+  )}</div>${area("Action", "action", sh.action, 3)}${area("Character dialogue", "dialogue", sh.dialogue, 3)}${field("Camera & movement", "camera", sh.camera)}${area("Generation prompt", "prompt", sh.prompt, 4)}${area("Avoid / negative prompt", "negative_prompt", sh.negative_prompt, 2)}${area("Continuity notes", "continuity", sh.continuity, 2)}<button class="button primary">Save shot</button></form><div class="section-heading"><h3>World references</h3></div><form data-form="shot-assets"><div class="references">${state.workspace.assets.map((a: R) => `<label class="check-label"><input type="checkbox" name="asset" value="${a.id}" ${sh.assets.some((v: R) => v.id === a.id) ? "checked" : ""}><span>${esc(a.name)}<small>${esc(a.kind)}</small></span></label>`).join("") || '<p class="muted">Build your world library to link characters, locations and styles.</p>'}</div><button class="button">Save references</button></form><div class="section-heading"><h3>Takes <span>${sh.takes.length}</span></h3><div class="actions">${button("Generate video", "generate-video", "", "button accent")}${button("+ Import", "upload", `data-context="take"`, "link")}</div></div><div class="takes">${sh.takes.map((t: R) => `<article class="take ${t.id === sh.selected_take_id ? "chosen" : ""}">${preview(t.media_id)}<div class="take-heading"><strong>${esc(t.label)}</strong><span>${generationCost(t)}</span></div><p class="muted">${esc(t.provider)} ${esc(t.model)} · trim ${t.trim_in}s</p>${t.notes ? `<p>${esc(t.notes)}</p>` : ""}<div class="actions">${button(t.id === sh.selected_take_id ? "✓ Selected" : "Select take", "take-select", `data-id="${t.id}"`, t.id === sh.selected_take_id ? "button accent" : "button")}${button("Notes & trim", "take-edit", `data-id="${t.id}"`)}${button("×", "delete", `data-table="takes" data-id="${t.id}"`, "icon-button danger")}</div></article>`).join("") || '<p class="muted">Bring in a generated clip to compare and select takes.</p>'}</div><div class="inspector-footer">${button("Delete shot", "delete", `data-table="shots" data-id="${sh.id}"`, "link danger")}</div>`;
 }
 function soundView() {
   return `<section class="page"><div class="section-heading"><div><h2>Sound design</h2><p class="muted">Place dialogue, music, ambience and effects against the film timeline.</p></div>${button("+ Audio cue", "upload", `data-context="audio"`, "button primary")}</div><div class="audio-list">${state.project!.audio.map((a: R) => `<article><div class="audio-kind">${esc(a.kind)}</div><div class="audio-body"><h3>${esc(a.label)}</h3><audio src="${mediaUrl(a.media_id)}" controls></audio><p>${a.offset}s into film · ${a.duration}s long · source trim ${a.trim_in}s · gain ${a.volume}</p></div><div>${button("Edit", "audio-edit", `data-id="${a.id}"`)}${button("×", "delete", `data-table="audio_cues" data-id="${a.id}"`, "icon-button danger")}</div></article>`).join("") || '<div class="empty-panel"><h3>Give the world a voice.</h3><p>Upload audio and set its placement, source trim, duration and volume.</p></div>'}</div><p class="muted">Rough cuts use the separate audio cues. Audio embedded in generated video takes is excluded.</p></section>`;
@@ -292,11 +292,12 @@ function libraryView() {
 function productionView() {
   const costs = state.workspace.spend || 0,
     jobs = state.workspace.jobs;
-  return `<section class="page"><div class="page-heading"><div><span class="eyebrow">PRODUCTION CONTROL</span><h1>Every attempt has a place.</h1><p>Durable jobs, original prompts, outputs and reported generation costs.</p></div>${button("Refresh jobs", "refresh")}</div><div class="cut-summary"><span>${jobs.filter((j: R) => j.status === "queued").length} queued</span><span>${jobs.filter((j: R) => j.status === "running").length} running</span><span>${money(costs)} recorded profile spend</span></div><p class="provider-note">${state.workspace.seedanceConfigured ? "BytePlus Seedance connected. BytePlus charges are not included in recorded spend; check your BytePlus billing." : state.workspace.generatorConfigured ? "Local generation adapter connected." : "Configure BytePlus Seedance in .env, or import generated media."} Imported take costs appear in each shot.</p><div class="job-list">${jobs.map((j: R) => `<article><span class="job-icon">${j.kind === "roughcut" ? "▣" : j.kind === "image" ? "◇" : "▶"}</span><div><h3>${esc(j.kind)} <span class="status ${j.status}">${esc(j.status)}</span></h3><p>${esc(j.provider)} ${esc(j.model)} · ${esc(j.created_at)}</p><p class="job-prompt">${esc(j.prompt.slice(0, 180))}</p>${j.error ? `<p class="warning">${esc(j.error)}</p>` : ""}${j.output_media_id ? `<a class="link" href="${mediaUrl(j.output_media_id)}" target="_blank" rel="noopener">Open output ↗</a>` : ""}</div><strong>${generationCost(j)}</strong>${j.status === "queued" ? button("Cancel", "job-cancel", `data-id="${j.id}"`) : ""}</article>`).join("") || '<div class="empty-panel"><h3>Ready when you are.</h3><p>Generation attempts and rough-cut renders will appear here.</p></div>'}</div></section>`;
+  return `<section class="page"><div class="page-heading"><div><span class="eyebrow">PRODUCTION CONTROL</span><h1>Every attempt has a place.</h1><p>Durable jobs, original prompts, outputs and reported generation costs.</p></div>${button("Refresh jobs", "refresh")}</div><div class="cut-summary"><span>${jobs.filter((j: R) => j.status === "queued").length} queued</span><span>${jobs.filter((j: R) => j.status === "running").length} running</span><span>${money(costs)} recorded profile spend</span></div><p class="provider-note">${state.workspace.seedanceConfigured ? "BytePlus Seedance connected." : "Seedance video not connected."} ${state.workspace.imageProviders?.openai || state.workspace.imageProviders?.google ? "Image generation connected." : "Set up an image provider in Settings to generate shot frames."} Provider-reported billing for built-in services is not included in recorded spend. Imported take costs appear in each shot.</p><div class="job-list">${jobs.map((j: R) => `<article><span class="job-icon">${j.kind === "roughcut" ? "▣" : j.kind === "image" ? "◇" : "▶"}</span><div><h3>${esc(j.kind)} <span class="status ${j.status}">${esc(j.status)}</span></h3><p>${esc(j.provider)} ${esc(j.model)} · ${esc(j.created_at)}</p><p class="job-prompt">${esc(j.prompt.slice(0, 180))}</p>${j.error ? `<p class="warning">${esc(j.error)}</p>` : ""}${j.output_media_id ? `<a class="link" href="${mediaUrl(j.output_media_id)}" target="_blank" rel="noopener">Open output ↗</a>` : ""}</div><strong>${generationCost(j)}</strong>${j.status === "queued" ? button("Cancel", "job-cancel", `data-id="${j.id}"`) : ""}</article>`).join("") || '<div class="empty-panel"><h3>Ready when you are.</h3><p>Generation attempts and rough-cut renders will appear here.</p></div>'}</div></section>`;
 }
 function settingsView() {
   const p = state.profiles.find((p) => p.id === state.profile)!;
-  return `<section class="page narrow"><span class="eyebrow">PROFILE SETTINGS</span><h1>Space for this body of work.</h1><form data-form="profile-edit">${field("Profile name", "name", p.name)}${area("Description", "description", p.description)}<button class="button primary">Save profile</button></form><div class="section-heading"><h2>People & permissions</h2>${button("Manage members", "members")}</div><p class="muted">Users can belong to multiple profiles. Owners manage membership; editors work on productions; viewers have read-only access.</p></section>`;
+  const connected = (v: boolean) => v ? "Connected" : "Not configured";
+  return `<section class="page narrow"><span class="eyebrow">PROFILE SETTINGS</span><h1>Space for this body of work.</h1><form data-form="profile-edit">${field("Profile name", "name", p.name)}${area("Description", "description", p.description)}<button class="button primary">Save profile</button></form><div class="section-heading"><h2>Generators & integrations</h2></div><p>Configure server-side credentials in your <code>.env</code> file, then restart Mothlight. API subscriptions are billed separately from ChatGPT or Gemini web subscriptions.</p><div class="provider-note"><p><strong>OpenAI · GPT Image:</strong> ${connected(state.workspace.imageProviders?.openai)} · <code>OPENAI_API_KEY</code></p><p><strong>Google · Nano Banana:</strong> ${connected(state.workspace.imageProviders?.google)} · <code>GEMINI_API_KEY</code></p><p><strong>BytePlus · Seedance video:</strong> ${connected(state.workspace.seedanceConfigured)} · <code>BYTEPLUS_MODELARK_API_KEY</code></p><p><strong>Local adapter:</strong> ${connected(state.workspace.adapterConfigured)} · <code>MOTHLIGHT_GENERATOR</code> · see <code>docs/generator-adapter.md</code></p></div><p class="muted">OpenAI and Gemini generate storyboard/end frames. Seedance generates video takes. Provider keys stay on the server and are never stored in shot records.</p><div class="section-heading"><h2>People & permissions</h2>${button("Manage members", "members")}</div><p class="muted">Users can belong to multiple profiles. Owners manage membership; editors work on productions; viewers have read-only access.</p></section>`;
 }
 function modal(title: string, content: string, form: string, attrs = "") {
   dialog.innerHTML = `<div class="dialog-heading"><h2>${esc(title)}</h2>${button("×", "close", "", "icon-button")}</div><form data-form="${form}" ${attrs}>${content}<div class="dialog-actions">${button("Cancel", "close")}<button class="button primary" type="submit">Save</button></div></form>`;
@@ -360,7 +361,7 @@ function cueFields(a?: R) {
   )}<div class="form-grid">${field("Timeline offset (s)", "offset", a?.offset || 0, "number")}${field("Source trim (s)", "trim_in", a?.trim_in || 0, "number")}${field("Duration (s)", "duration", a?.duration || 5, "number")}${field("Volume (0–4)", "volume", a?.volume ?? 1, "number")}</div>`;
 }
 function generationFields(provider: string) {
-  if (provider !== "byteplus") return select("Output", "kind", [["image", "Storyboard image"], ["video", "Video take"]], "image") + field("Model", "model") + '<p class="muted">Uses your local generation adapter and linked shot references.</p>';
+  if (provider !== "byteplus") return '<input type="hidden" name="kind" value="video">' + field("Model", "model") + '<p class="muted">Generates a video take through your local adapter and linked shot references.</p>';
   const models: R[] = state.workspace.seedanceModels || [];
   return `<input type="hidden" name="kind" value="video">` +
     select("Seedance model", "model", models.map(m => [m.id, m.name]), models[0]?.id) +
@@ -368,6 +369,40 @@ function generationFields(provider: string) {
     select("Image inputs", "mode", [["text", "Text only"], ["frames", "Shot first / last frames"], ["references", "Linked World reference images"]], currentShot()?.storyboard_id ? "frames" : "text") +
     `<div class="form-grid">${field("Duration (seconds)", "duration", currentShot()?.duration || 5, "number")}${select("Resolution", "resolution", [["720p", "720p"], ["480p", "480p"]], "720p")}${select("Aspect ratio", "ratio", ["adaptive", "16:9", "9:16", "1:1", "4:3", "3:4", "21:9"].map(v => [v, v]), "adaptive")}${select("Sound", "audio", [["false", "Silent"], ["true", "Generate audio"]], "false")}</div>` +
     `<p class="muted" id="seedance-capabilities"></p><p class="muted">Visual style, camera, dialogue and continuity text are included. Image inputs follow the selected mode; video and audio attachments are not uploaded. Generation is billed by BytePlus. Completed clips appear as new takes; refresh the shot or Production to check progress.</p>`;
+}
+function frameGenerationFields(provider: string) {
+  if (provider === "custom") return field("Model / adapter option (optional)", "model") + '<p class="muted">Your local adapter must return a PNG for image jobs.</p>';
+  const models: R[] = state.workspace.imageModels?.[provider] || [];
+  return select("Image model", "model", models.map(m => [m.id, m.name]), models[0]?.id || "");
+}
+function frameGenerationModal() {
+  const providers: [string, string][] = [];
+  if (state.workspace.imageProviders?.google) providers.push(["google", "Google · Nano Banana"]);
+  if (state.workspace.imageProviders?.openai) providers.push(["openai", "OpenAI · GPT Image"]);
+  if (state.workspace.imageProviders?.custom) providers.push(["custom", "Local image adapter"]);
+  if (!providers.length) {
+    modal(
+      "Connect an image generator",
+      '<p>Storyboard and end-frame generation need an image service. Add a <code>GEMINI_API_KEY</code> or <code>OPENAI_API_KEY</code> to your server’s <code>.env</code> and restart Mothlight, or configure <code>MOTHLIGHT_GENERATOR</code> for a local image adapter.</p>' +
+      '<p class="muted">Seedance is used separately for video takes.</p>' +
+      button("Open generator settings", "generator-settings", "", "button accent"),
+      "info",
+    );
+    dialog.querySelector<HTMLButtonElement>('button[type="submit"]')!.textContent = "Close";
+    return;
+  }
+  const sh = currentShot()!;
+  const defaultTarget = !sh.storyboard_id ? "storyboard" : !sh.end_frame_id ? "endframe" : "storyboard";
+  modal(
+    "Generate shot frames",
+    select("Create", "frameTarget", [["storyboard", "Storyboard / start frame"], ["endframe", "End frame"], ["both", "Both frames · sequentially"]], defaultTarget) +
+      select("Image service", "provider", providers, providers[0][0]) +
+      '<div id="image-generation-options">' + frameGenerationFields(providers[0][0]) + '</div>' +
+      area("Image prompt", "prompt", sh.prompt || sh.action, 7) +
+      '<p class="muted">Uses the shot action, camera, visual style, continuity notes and linked World images. For an end frame, Mothlight includes the current storyboard as a reference. Previous images remain in the media shelf when replaced.</p>',
+    "generate-frames",
+  );
+  dialog.querySelector<HTMLButtonElement>('button[type="submit"]')!.textContent = "Queue frame generation";
 }
 function updateSeedanceFields() {
   const form = dialog.querySelector<HTMLFormElement>('form[data-form="generate"]');
@@ -650,13 +685,26 @@ async function action(el: HTMLElement) {
     await loadWorkspace();
     return;
   }
-  if (a === "generate") {
-    if (!state.workspace.generatorConfigured) {
+  if (a === "generate-frames") {
+    frameGenerationModal();
+    return;
+  }
+  if (a === "generator-settings") {
+    dialog.close();
+    state.view = "settings";
+    state.project = null;
+    render();
+    return;
+  }
+  if (a === "generate-video") {
+    if (!state.workspace.seedanceConfigured && !state.workspace.adapterConfigured) {
       modal(
-        "Connect your generation tools",
-        `<p>Use Import to bring in images and clips from Seedance, Kling, Veo or other tools.</p><p>For Seedance, add <code>BYTEPLUS_MODELARK_API_KEY</code> to the project’s <code>.env</code> file and restart the studio. Alternatively, configure a local adapter using <code>docs/generator-adapter.md</code>.</p>`,
+        "Connect a video generator",
+        '<p>Set <code>BYTEPLUS_MODELARK_API_KEY</code> for Seedance or <code>MOTHLIGHT_GENERATOR</code> for a local adapter. Restart Mothlight after editing <code>.env</code>.</p>' +
+        button("Open generator settings", "generator-settings", "", "button accent"),
         "info",
       );
+      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')!.textContent = "Close";
       return;
     }
     const providers: [string, string][] = [];
@@ -921,10 +969,13 @@ async function submit(form: HTMLFormElement) {
     await request(url(`${form.dataset.table}/${rid}`), "DELETE");
     if (state.shot === rid) state.shot = "";
   }
-  if (type === "generate") {
+  if (type === "generate" || type === "generate-frames") {
     b.shot_id = state.shot;
-    await request(url("jobs"), "POST", b);
-    notice("Generation queued.");
+    b.kind = type === "generate-frames" ? "image" : "video";
+    const result = await request(url("jobs"), "POST", b);
+    notice(type === "generate-frames"
+      ? (result.queued === 2 ? "Storyboard and end-frame jobs queued." : "Frame generation queued.")
+      : "Video generation queued.");
   }
   if (type === "member") await request(url("members"), "POST", b);
   if (type === "upload") {
@@ -1108,6 +1159,9 @@ dialog.addEventListener("paste", (e) => {
 });
 dialog.addEventListener("change", async (e) => {
   const input = e.target as HTMLInputElement;
+  if (input.closest('form[data-form="generate-frames"]') && input.name === "provider") {
+    dialog.querySelector("#image-generation-options")!.innerHTML = frameGenerationFields(input.value);
+  }
   if (input.closest('form[data-form="generate"]')) {
     if (input.name === "provider")
       dialog.querySelector("#generation-options")!.innerHTML = generationFields(input.value);
