@@ -9,7 +9,7 @@ export function mediaResponse(req: Request, media: Row): Response {
     "Content-Length": String(size),
     "Accept-Ranges": "bytes",
     "X-Content-Type-Options": "nosniff",
-    "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(media.filename)}`,
+    "Content-Disposition": `${media.mime.startsWith("image/") || media.mime.startsWith("video/") || media.mime.startsWith("audio/") ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(media.filename)}`,
   };
   const range = req.headers.get("range");
   if (!range || req.method === "HEAD")
