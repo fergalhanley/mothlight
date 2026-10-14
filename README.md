@@ -22,12 +22,41 @@ Open **http://localhost:3000** and create your studio account. No cloud account,
 1. Create a **profile** for a body of work. Profiles separate projects, series, world assets, uploaded media and production jobs. One user can work in several profiles.
 2. Create a **series** and its world bible, if the films share a universe. Create a short, episode or feature inside it.
 3. Write a treatment and visual direction in **Story**. Add scenes manually or import a Fountain/plain-text screenplay with `INT.` and `EXT.` scene headings. Imports append scenes and preserve the original action and dialogue.
-4. Build the profile's **World library**: characters, locations, props, costumes, visual styles and voices. Record their descriptions, reusable prompts, continuity rules and reference media.
+4. Build the profile's **World library**: characters, locations, props, costumes, visual styles and voices. Record their descriptions, reusable prompts, continuity rules and reference media. Use **Import assets** to load a reusable world asset pack from JSON, then attach as many supporting reference files as needed to each asset.
 5. In **Shot workspace**, break each scene into shots. Set action, dialogue, camera movement, duration and continuity. Link the relevant world assets. Reorder scenes and shots using their up/down controls. Alternatively, **Import shots** accepts a numbered Markdown shot breakdown; it previews scene matches and incoming counts before making one atomic import. Existing shots are retained, and adding to occupied scenes requires explicit **Append**.
 6. Import a storyboard and optional end frame. Import multiple video takes, record provider/model/prompt/cost and review notes, set source trim, compare them, and select a take. Approval requires a selected take.
 7. In **Sound**, import dialogue, music, effects and ambience. Set timeline offset, source trim, duration and gain for each cue. A voice asset is a bible/reference entry, not a built-in TTS generator.
 8. In **Rough cut**, render the selected shots with FFmpeg. The app normalizes dimensions and frame rate, fits media without cropping, and holds the final frame when a clip is shorter than its planned shot. A queued render captures the project settings, takes and cue timings at submission. Rendered video uses the separate audio cues; embedded take audio is excluded.
 9. Download the **Resolve handoff** ZIP. It contains a CMX3600 video EDL, original selected video/audio files, a timing/relink manifest and production JSON. Import the EDL at the manifest frame rate, relink to the `media` directory, and place audio cues using the manifest. Audio track placement is not encoded in the video EDL. This first version supports straight cuts at 24, 25 and 30 fps, without transitions or a full nonlinear editor.
+
+## World Library asset packs and attachments
+
+The World Library belongs to a **profile**, so character, location, prop, costume, voice and style entries can be shared by multiple productions. From **World library → Import assets**, select a `.json` file or paste its contents. Review the preview, then confirm. Matching `(type, name)` entries are skipped, not overwritten, so re-importing the same pack is safe and does not erase manual edits or reference media.
+
+Asset pack v1 (UTF-8 JSON) uses the five editable World Library fields for each asset:
+
+```json
+{
+  "version": 1,
+  "title": "Fates Abound — The Forecast",
+  "assets": [
+    {
+      "kind": "character",
+      "name": "Ryan Altair — age 17",
+      "description": "A rebellious New York teenager with an instinct for computer systems.",
+      "prompt": "Reusable visual-generation reference; proposed appearance and mannerisms.",
+      "continuity": "His teenage appearance and relationship to Marisol must remain consistent."
+    }
+  ]
+}
+```
+
+- Valid asset `kind` values: `character`, `location`, `prop`, `costume`, `style`, `voice`.
+- Every asset requires `kind`, `name`, `description`, `prompt` and `continuity` strings, which are editable after import. Limit: 1 MB JSON pack and 200 assets per import.
+- Type and name are compared case-insensitively (with whitespace normalisation) within the **selected profile**. Existing assets are skipped, and the confirmation screen reports creates versus skips. Nothing is overwritten. Adding to a different studio profile creates a separate library entry.
+- For each World Library entry use **Edit bible** to edit text, **Cover image** to attach or replace its thumbnail, and **+ Attach file** to add independently labelled references (images, audio, video, Markdown, text, PDF, Word files, 3D model files, ZIP or downloadable binary files). Multiple attachments are supported; previewable formats show previews, others show download links.
+- **Remove link** unlinks a reference from an asset but leaves the uploaded file on the Media shelf. The original media remains stored. Image covers use the pre-existing `media_id` field for compatibility with earlier Mothlight installations.
+- Text descriptions and continuity notes remain native editable fields. Uploaded documents are downloaded, not executed inline. The asset reference collection is included in snapshots passed to the generation adapter, but generation-provider-specific handling of these references depends on your configured adapter.
 
 ## Markdown shot breakdown import
 
