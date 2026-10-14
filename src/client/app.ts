@@ -104,7 +104,9 @@ function preview(mid: string | undefined, cls = "") {
     ? `<video class="frame ${cls}" src="${mediaUrl(mid)}" controls preload="metadata"></video>`
     : m?.mime.startsWith("audio/")
       ? `<audio src="${mediaUrl(mid)}" controls></audio>`
-      : `<img class="frame ${cls}" src="${mediaUrl(mid)}" alt="Reference frame">`;
+      : m?.mime.startsWith("image/")
+        ? `<img class="frame ${cls}" src="${mediaUrl(mid)}" alt="Reference frame">`
+        : `<a class="button" href="${mediaUrl(mid)}" download="${esc(m?.filename || "file")}">Download ${esc(m?.filename || "file")}</a>`;
 }
 async function init() {
   try {
@@ -252,8 +254,20 @@ function cutView() {
     );
   return `<section class="page"><div class="section-heading"><div><h2>See the story come together.</h2><p class="muted">Selected takes, in shot order, with your sound design.</p></div><div class="actions">${button("Refresh", "refresh")}${button("Render rough cut", "roughcut", ready ? "" : "disabled", "button primary")}</div></div><div class="cut-summary"><span>${list.length} shots</span><span>${list.reduce((n, s) => n + s.duration, 0).toFixed(1)} seconds</span><span>${state.project!.fps} fps</span><span>${state.project!.width} × ${state.project!.height}</span></div><div class="timeline">${list.map((s, i) => `<button data-action="cut-shot" data-id="${s.id}" class="timeline-clip ${s.selected_take_id ? "ready" : ""}" style="flex-grow:${Math.min(s.duration, 30)}"><span>${String(i + 1).padStart(2, "0")}</span><strong>${esc(s.title)}</strong><small>${s.duration}s ${s.selected_take_id ? "✓" : "missing take"}</small></button>`).join("")}</div>${!ready ? '<p class="warning">Select a video take for every shot before rendering or exporting.</p>' : ""}<div class="roughcuts">${jobs.map((j: R) => `<article><div class="section-heading"><h3>Rough cut <span class="status ${j.status}">${j.status}</span></h3><span>${esc(j.created_at)}</span></div>${j.output_media_id ? preview(j.output_media_id, "cut-player") : ""}${j.error ? `<p class="warning">${esc(j.error)}</p>` : ""}${j.status === "queued" || j.status === "running" ? '<p class="muted">Rendering locally with FFmpeg. Refresh to check progress.</p>' : ""}</article>`).join("")}</div><div class="handoff-note"><div><span class="eyebrow">THE FINAL CRAFT</span><h2>Finish in Resolve.</h2><p>Export a portable package with your original media, video EDL, audio placements and full production notes.</p><p class="muted">The EDL carries video cuts. Place audio tracks using the included manifest.</p></div>${button("Download handoff ↗", "handoff", ready ? "" : "disabled", "button primary")}</div></section>`;
 }
+function assetAttachments(asset: R) {
+  const attachments: R[] = asset.attachments || [];
+  if (!attachments.length) return '<p class="muted">No supporting files yet.</p>';
+  return attachments.map((ref) =>
+    `<div class="asset-attachment">
+      <div><strong>${esc(ref.label || ref.filename)}</strong><small>${esc(ref.mime)}</small></div>
+      ${preview(ref.media_id)}
+      ${ref.notes ? `<p>${esc(ref.notes)}</p>` : ""}
+      <div class="actions">${button("Remove link", "asset-attachment-remove", `data-asset="${asset.id}" data-id="${ref.id}"`, "link danger")}</div>
+    </div>`
+  ).join("");
+}
 function libraryView() {
-  return `<section class="page"><div class="page-heading"><div><span class="eyebrow">CHARACTERS. PLACES. RULES OF THE WORLD.</span><h1>A world worth returning to.</h1><p>Shared across every production in this profile.</p></div>${button("+ New asset", "asset-new", "", "button primary")}</div><div class="asset-grid">${state.workspace.assets.map((a: R) => `<article class="asset-card">${a.media_id ? preview(a.media_id) : `<div class="asset-placeholder"><span>${({ character: "♙", location: "⌂", prop: "◇", costume: "♧", style: "✦", voice: "≋" } as R)[a.kind]}</span></div>`}<div class="asset-card-body"><span class="eyebrow">${esc(a.kind)}</span><h2>${esc(a.name)}</h2><p>${esc(a.description.slice(0, 160))}</p><div class="actions">${button("Edit bible", "asset-edit", `data-id="${a.id}"`)}${button("Reference", "upload", `data-context="asset" data-id="${a.id}"`)}${button("×", "delete", `data-table="assets" data-id="${a.id}"`, "icon-button danger")}</div></div></article>`).join("") || '<div class="empty-panel"><h2>Establish the constants.</h2><p>Add characters, locations, props, costumes, voices and visual styles. Give each a reference and continuity notes.</p></div>'}</div><div class="section-heading"><h2>Media shelf <span>${state.workspace.media.length}</span></h2>${button("+ Upload media", "upload", `data-context="media"`)}</div><div class="media-shelf">${state.workspace.media.map((m: R) => `<article>${preview(m.id)}<p>${esc(m.filename)}</p><small>${(m.size / 1048576).toFixed(1)} MB</small></article>`).join("")}</div></section>`;
+  return `<section class="page"><div class="page-heading"><div><span class="eyebrow">CHARACTERS. PLACES. RULES OF THE WORLD.</span><h1>A world worth returning to.</h1><p>Shared across every production in this profile.</p></div><div class="actions">${button("Import assets", "assets-import")}${button("+ New asset", "asset-new", "", "button primary")}</div></div><div class="asset-grid">${state.workspace.assets.map((a: R) => `<article class="asset-card">${a.media_id ? preview(a.media_id) : `<div class="asset-placeholder"><span>${({ character: "♙", location: "⌂", prop: "◇", costume: "♧", style: "✦", voice: "≋" } as R)[a.kind]}</span></div>`}<div class="asset-card-body"><span class="eyebrow">${esc(a.kind)}</span><h2>${esc(a.name)}</h2><p>${esc(a.description.slice(0, 160))}</p><div class="actions">${button("Edit bible", "asset-edit", `data-id="${a.id}"`)}${button("Cover image", "upload", `data-context="asset" data-id="${a.id}"`)}${button("+ Attach file", "upload", `data-context="asset-attachment" data-id="${a.id}"`)}${button("×", "delete", `data-table="assets" data-id="${a.id}"`, "icon-button danger")}</div><details><summary>Supporting references (${(a.attachments || []).length})</summary>${assetAttachments(a)}</details></div></article>`).join("") || '<div class="empty-panel"><h2>Establish the constants.</h2><p>Add characters, locations, props, costumes, voices and visual styles. Give each a reference and continuity notes.</p></div>'}</div><div class="section-heading"><h2>Media shelf <span>${state.workspace.media.length}</span></h2>${button("+ Upload media", "upload", `data-context="media"`)}</div><div class="media-shelf">${state.workspace.media.map((m: R) => `<article>${preview(m.id)}<p>${esc(m.filename)}</p><small>${(m.size / 1048576).toFixed(1)} MB</small></article>`).join("")}</div></section>`;
 }
 function productionView() {
   const costs = state.workspace.spend || 0,
@@ -326,7 +340,9 @@ function cueFields(a?: R) {
   )}<div class="form-grid">${field("Timeline offset (s)", "offset", a?.offset || 0, "number")}${field("Source trim (s)", "trim_in", a?.trim_in || 0, "number")}${field("Duration (s)", "duration", a?.duration || 5, "number")}${field("Volume (0–4)", "volume", a?.volume ?? 1, "number")}</div>`;
 }
 async function uploadModal(context: string, assetId = "") {
-  let content = `<label>Media file<input name="file" type="file" required accept="${context === "take" ? "video/*" : context === "audio" ? "audio/*" : context === "storyboard" || context === "endframe" ? "image/*" : "image/*,audio/*,video/*"}"></label>${field("Original local path (optional, for Resolve relinking)", "localPath")}`;
+  let content = `<label>Media file<input name="file" type="file" required accept="${context === "take" ? "video/*" : context === "audio" ? "audio/*" : context === "storyboard" || context === "endframe" || context === "asset" ? "image/*" : "image/*,audio/*,video/*,.txt,.md,.json,.pdf,.docx"}"></label>${field("Original local path (optional, for Resolve relinking)", "localPath")}`;
+  if (context === "asset-attachment")
+    content += field("Reference label", "label") + area("Reference notes", "notes", "", 3);
   if (context === "take")
     content += `${field("Take label", "label", `Take ${(currentShot()?.takes.length || 0) + 1}`)}${field("Provider", "provider", "manual")}${field("Model", "model")}${field("Cost (USD)", "cost", 0, "number")}${field("Source trim (s)", "trim_in", 0, "number")}${area("Original prompt", "prompt", currentShot()?.prompt)}${area("Review notes", "notes")}`;
   if (context === "audio") content += cueFields();
@@ -462,6 +478,24 @@ async function action(el: HTMLElement) {
       "series",
       s ? `data-id="${s.id}"` : "",
     );
+    return;
+  }
+  if (a === "assets-import") {
+    modal(
+      "Import world asset pack",
+      '<label>Asset pack JSON<input id="assets-import-file" type="file" accept=".json,application/json"></label>' +
+      area("Or paste the JSON asset pack", "text", "", 10) +
+      '<p class="muted">Import adds assets to this profile’s shared World library. Existing assets with the same type and name will be skipped, never overwritten.</p>',
+      "assets-import-preview",
+    );
+    dialog.querySelector<HTMLButtonElement>('button[type="submit"]')!.textContent = "Preview assets";
+    return;
+  }
+  if (a === "asset-attachment-remove") {
+    if (!window.confirm("Unlink this reference from the asset? The uploaded file remains in the media shelf.")) return;
+    await request(url("assets/" + el.dataset.asset + "/attachments/" + rid), "DELETE");
+    await loadWorkspace();
+    notice("Reference unlinked.");
     return;
   }
   if (a === "asset-new" || a === "asset-edit") {
@@ -618,6 +652,38 @@ async function submit(form: HTMLFormElement) {
     b: R = Object.fromEntries(values.entries()),
     rid = form.dataset.id;
   const num = (...keys: string[]) => keys.forEach((k) => (b[k] = Number(b[k])));
+  if (type === "assets-import-preview") {
+    const source = String(b.text || "");
+    const result = await request(url("assets/import"), "POST", { text: source, preview: true });
+    const rows: R[] = result.assets;
+    const details = rows.map(a =>
+      '<p><strong>' + esc(a.kind) + ' · ' + esc(a.name) + '</strong> — ' +
+      (a.action === "create" ? "Create" : "Skip existing") + '</p>'
+    ).join("");
+    dialog.close();
+    modal(
+      "Review world asset import",
+      '<p><strong>' + result.create + ' new assets, ' + result.skip +
+      ' existing assets skipped.</strong> Nothing has been saved yet.</p>' +
+      '<div style="max-height:260px;overflow:auto">' + details + '</div>' +
+      '<textarea name="text" hidden>' + esc(source) + '</textarea>' +
+      '<input name="expected" type="hidden" value="' +
+      esc(JSON.stringify(rows.map(a => ({ kind: a.kind, name: a.name, existing_id: a.existing_id })))) + '">',
+      "assets-import-confirm",
+    );
+    dialog.querySelector<HTMLButtonElement>('button[type="submit"]')!.textContent = "Import assets";
+    return;
+  }
+  if (type === "assets-import-confirm") {
+    const result = await request(url("assets/import"), "POST", {
+      text: String(b.text || ""), expected: JSON.parse(String(b.expected)),
+    });
+    dialog.close();
+    state.view = "library";
+    await loadWorkspace();
+    notice("Imported " + result.created + " assets; skipped " + result.skipped + " existing.");
+    return;
+  }
   if (type === "shots-import-preview") {
     const source = String(b.text || "");
     const previewResult = await request(
@@ -784,6 +850,12 @@ async function submit(form: HTMLFormElement) {
       });
     if (context === "asset")
       await request(url(`assets/${rid}`), "PATCH", { media_id: m.id });
+    if (context === "asset-attachment")
+      await request(url(`assets/${rid}/attachments`), "POST", {
+        media_id: m.id,
+        label: String(b.label || m.filename),
+        notes: String(b.notes || ""),
+      });
     if (context === "take") {
       delete b.file;
       delete b.localPath;
@@ -838,10 +910,10 @@ document.addEventListener("submit", async (e) => {
 });
 dialog.addEventListener("change", async (e) => {
   const input = e.target as HTMLInputElement;
-  if (input.id !== "shots-import-file" || !input.files?.length) return;
+  if (!["shots-import-file", "assets-import-file"].includes(input.id) || !input.files?.length) return;
   const file = input.files[0];
   if (file.size > 1_000_000) {
-    notice("Shot breakdown must be 1 MB or smaller.", true);
+    notice("Import file must be 1 MB or smaller.", true);
     input.value = "";
     return;
   }
