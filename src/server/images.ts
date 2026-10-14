@@ -1,6 +1,9 @@
 import { readFile, stat } from "node:fs/promises";
 import { extname } from "node:path";
-import { requireValue } from "./auth";
+// Keep the provider client independent of the studio database and session runtime.
+function requireValue(ok: unknown, message: string): asserts ok {
+  if (!ok) throw new Error(message);
+}
 import type { Row } from "./db";
 
 export const IMAGE_MODELS = {
