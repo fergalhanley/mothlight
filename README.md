@@ -92,7 +92,7 @@ BytePlus Seedance video generation is built in. Put your ModelArk API key in the
 BYTEPLUS_MODELARK_API_KEY=your-key-here
 ```
 
-Restart `bun run dev`, select a shot, and click **Generate**. Choose **BytePlus · Seedance**, a model, image input mode, duration, resolution and audio setting. Activate your chosen model in the [BytePlus console](https://ai.byteplus.com/ark/region:ap-southeast-1) first. The dropdown is a supported catalogue, not a live account-access check. Optionally set `MOTHLIGHT_SEEDANCE_MODELS` to a comma-separated subset of supported model IDs to show only the models you use.
+Restart `bun run dev`, select a shot, and click **Generate video** in **Takes**. Choose **BytePlus · Seedance**, a model, image input mode, duration, resolution and audio setting. Activate your chosen model in the [BytePlus console](https://ai.byteplus.com/ark/region:ap-southeast-1) first. The dropdown is a supported catalogue, not a live account-access check. Optionally set `MOTHLIGHT_SEEDANCE_MODELS` to a comma-separated subset of supported model IDs to show only the models you use.
 
 The catalogue includes Seedance 2.5, 2.0, 2.0 Fast, 2.0 Mini, 1.0 Pro and 1.0 Pro Fast, checked against the [BytePlus model list](https://docs.byteplus.com/en/docs/modelark/model-list) on 2026-10-14. Seedance 1.5 is omitted because BytePlus marks it retired. This integration offers 480p/720p output. First/last frame inputs and World image references are separate modes; video/audio attachments are not sent. World descriptions and shot direction are included as text in all modes. Input images must meet BytePlus size and dimension requirements.
 
@@ -100,9 +100,22 @@ Generation runs in the background and downloads the finished MP4 into the shot�
 
 The key stays on the server; `.env` is ignored by Git. No paid generation is performed just by configuring the key or selecting a model.
 
+### Still frames (OpenAI or Nano Banana)
+
+The **Generate frames** action in Shot workspace is separate from Seedance video takes. Configure one or both of these API keys in the server's `.env` file (and restart):
+
+```dotenv
+OPENAI_API_KEY=your-openai-api-key
+GEMINI_API_KEY=your-google-gemini-api-key
+```
+
+Go to **Settings → Generators & integrations** to confirm connections. **Generate frames** can generate a storyboard/start frame, an end frame, or both sequentially. The end-frame request uses the shot's current storyboard image as a reference; in **Both** mode it uses the newly generated storyboard. The image providers receive the shot action, prompt, camera, project visual direction, continuity, and linked World image references. Existing frames remain on the media shelf when a newly generated frame replaces the shot's active frame. Image jobs and outputs are retained in Production.
+
+Supported image providers: **OpenAI GPT Image** (1.5, 1 Mini, 2) and **Google Gemini Nano Banana** (2.1, 2.5 Flash Image, Pro). Image API billing is separate from ChatGPT/Gemini subscriptions. Built-in image-provider jobs display **See provider billing** rather than fabricating a USD charge. Jobs are not automatically retried after failure.
+
 Other image/video tools work through media import or a **provider-neutral local executable adapter**. Configure `MOTHLIGHT_GENERATOR` in `.env` and restart the server. See [the adapter contract](docs/generator-adapter.md).
 
-The executable receives a JSON snapshot containing the shot, camera, dialogue, duration, negative prompt, project style, linked asset descriptions/continuity and local first/last/reference image paths. It returns an output path and actual reported cost. Successful video jobs create new takes; successful image jobs attach storyboard frames. Takes are never selected automatically.
+The executable receives a JSON snapshot containing the shot, camera, dialogue, duration, negative prompt, project style, linked asset descriptions/continuity and local first/last/reference image paths. Image jobs also receive `frameTarget` (`storyboard` or `endframe`). It returns an output path and actual reported cost. Successful video jobs create new takes; successful image jobs attach the requested shot frame. Takes are never selected automatically.
 
 No proprietary provider, API key, model price or unverified third-party workflow is baked into this build. The workflow follows a reference-first approach: world design → storyboard → animate individual shots → review → assemble → finish. Provider-specific adapters are the next extension point, rather than buttons that simulate generation.
 

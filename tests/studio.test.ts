@@ -8,6 +8,8 @@ delete process.env.MOTHLIGHT_HOSTED;
 delete process.env.MOTHLIGHT_GENERATOR;
 delete process.env.BYTEPLUS_MODELARK_API_KEY;
 delete process.env.MOTHLIGHT_SEEDANCE_MODELS;
+delete process.env.OPENAI_API_KEY;
+delete process.env.GEMINI_API_KEY;
 const { handle } = await import("../src/server/index");
 const { db, one, all, run, openDatabase } = await import("../src/server/db");
 const { createUser, cookie } = await import("../src/server/auth");
@@ -647,6 +649,52 @@ test("provider jobs store the prompt and references, create takes, and expose ex
   );
   delete process.env.MOTHLIGHT_GENERATOR;
 });
+
+test("image jobs target storyboard and end frame without overwriting video takes", async () => {
+  const adapter = join(root, "frame-adapter");
+  const png = join(root, "generated.png");
+  await Bun.write(png, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==", "base64"));
+  await Bun.write(adapter,
+    `#!${process.execPath}\nconst input=await new Response(Bun.stdin).json();\nif(input.kind!=="image")throw new Error("Expected an image job");\nconsole.log(JSON.stringify({outputPath:${JSON.stringify(png)},cost:0.11}));\n`);
+  await chmod(adapter, 0o755);
+  process.env.MOTHLIGHT_GENERATOR = adapter;
+  try {
+    const queued = await call(p("jobs"), "POST", {
+      shot_id: shot.id, kind: "image", provider: "custom",
+      frameTarget: "both", prompt: "Generate two cinematic frames",
+    });
+    expect(queued.status).toBe(202);
+    expect(queued.data.ids).toHaveLength(2);
+    const [first, second] = queued.data.ids;
+    await tick();
+    const storyboardJob = one("SELECT * FROM jobs WHERE id=?", first)!;
+    expect(storyboardJob.status).toBe("succeeded");
+    const storyboardId = one("SELECT storyboard_id FROM shots WHERE id=?", shot.id)!.storyboard_id;
+    expect(storyboardId).toBe(storyboardJob.output_media_id);
+    await tick();
+    const endFrameJob = one("SELECT * FROM jobs WHERE id=?", second)!;
+    expect(endFrameJob.status).toBe("succeeded");
+    const updated = one("SELECT storyboard_id,end_frame_id FROM shots WHERE id=?", shot.id)!;
+    expect(updated.storyboard_id).toBe(storyboardId);
+    expect(updated.end_frame_id).toBe(endFrameJob.output_media_id);
+    expect(updated.end_frame_id).not.toBe(updated.storyboard_id);
+    const endInput = JSON.parse(endFrameJob.input_json);
+    expect(endInput.firstFrame).toContain(one("SELECT stored_name FROM media WHERE id=?", storyboardId)!.stored_name);
+    expect(endInput.frameTarget).toBe("endframe");
+    expect((await call(p("workspace"))).data.spend).toBeGreaterThanOrEqual(0.22);
+    const standalone = await call(p("jobs"), "POST", {
+      shot_id: shot.id, kind: "image", provider: "custom",
+      frameTarget: "endframe", prompt: "Adjust the last frame",
+    });
+    expect(standalone.status).toBe(202);
+    await tick();
+    expect(one("SELECT status FROM jobs WHERE id=?", standalone.data.id)!.status).toBe("succeeded");
+    expect(one("SELECT storyboard_id FROM shots WHERE id=?", shot.id)!.storyboard_id).toBe(storyboardId);
+    expect(one("SELECT end_frame_id FROM shots WHERE id=?", shot.id)!.end_frame_id).not.toBe(updated.end_frame_id);
+  } finally {
+    delete process.env.MOTHLIGHT_GENERATOR;
+  }
+}, 30000);
 
 test("Seedance validates model capabilities and keeps image input modes separate", async () => {
   const { seedanceOptions, seedancePayload, seedanceModels } = await import("../src/server/seedance");

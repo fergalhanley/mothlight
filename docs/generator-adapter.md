@@ -8,6 +8,7 @@ Set `MOTHLIGHT_GENERATOR` to the absolute path of an executable. Bun invokes it 
 {
   "jobId": "uuid",
   "kind": "image",
+  "frameTarget": "storyboard",
   "provider": "your-provider",
   "model": "your-model",
   "prompt": "The submitted generation prompt",
@@ -28,7 +29,7 @@ Set `MOTHLIGHT_GENERATOR` to the absolute path of an executable. Bun invokes it 
 }
 ```
 
-Records also contain IDs and additional production fields. `referencePath`, `firstFrame` and `lastFrame` are null when absent. The request's `prompt` is the submitted prompt; the adapter must decide how to combine it with project style, linked prompts, continuity, dialogue and camera direction. Do not discard those fields silently.
+Records also contain IDs and additional production fields. For still-image jobs, `frameTarget` is `storyboard` or `endframe`. The editor can queue both in sequence; the end-frame job receives the latest storyboard as `firstFrame` after the first job succeeds. `referencePath`, `firstFrame` and `lastFrame` are null when absent. The request's `prompt` is the submitted prompt; the adapter must decide how to combine it with project style, linked prompts, continuity, dialogue and camera direction. Do not discard those fields silently.
 
 ## Response
 
@@ -55,4 +56,4 @@ console.log(JSON.stringify({outputPath: source, cost: 0}));
 
 Save outside the repository as `adapter.ts`, make it executable (`chmod +x adapter.ts`), and configure its absolute path. For real generation, replace the fixture operation with your provider's SDK/API, keep credentials in the server environment, and wait for the provider to finish before returning.
 
-The studio has built-in BytePlus Seedance video generation (see the README). Kling, Veo, ElevenLabs and language-model integrations can use this adapter boundary; first/last-frame support and other capabilities must be validated against the particular provider/model rather than implied by a generic UI.
+The studio has built-in OpenAI GPT Image and Google Nano Banana still-image generation as well as BytePlus Seedance video generation (see the README). Kling, Veo, ElevenLabs and language-model integrations can use this adapter boundary; first/last-frame support and other capabilities must be validated against the particular provider/model rather than implied by a generic UI.
