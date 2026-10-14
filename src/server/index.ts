@@ -30,6 +30,10 @@ export async function handle(req: Request) {
       response = new Response(appJs, {
         headers: { "Content-Type": "text/javascript" },
       });
+    else if (u.pathname === "/icon.png")
+      response = new Response(Bun.file("src/client/assets/icon.png"), {
+        headers: { "Content-Type": "image/png" },
+      });
     else if (u.pathname === "/styles.css")
       response = new Response(Bun.file("src/client/styles.css"), {
         headers: { "Content-Type": "text/css" },
