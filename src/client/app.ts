@@ -31,6 +31,7 @@ const esc = (s: unknown) =>
 const url = (path: string) => `/api/profiles/${state.profile}/${path}`;
 const mediaUrl = (mid: string) => url(`media/${mid}`);
 const money = (n: number) => `$${n.toFixed(2)}`;
+const generationCost = (record: R) => record.provider === "byteplus" && !record.cost ? "See BytePlus billing" : money(record.cost);
 const field = (
   label: string,
   name: string,
@@ -130,6 +131,7 @@ function authView(setup: boolean) {
   app.innerHTML = `<main class="auth"><div class="auth-art"><img class="auth-icon" src="/icon.png" alt="Moth with violet, pink, amber, and green wings" width="712" height="712"><span class="eyebrow">THE SPACE BETWEEN STORY AND SCREEN</span><h1>Bring your<br>stories to light.</h1><p>A considered workspace for the films only you can make.</p><div class="wordmark">mothlight</div></div><section><span class="eyebrow">YOUR FILMMAKING STUDIO</span><h2>${setup ? "Make room for your next film." : "Welcome back."}</h2><p>${setup ? "Create your local studio account. Projects and media live on this machine." : "Sign in to your studio."}</p><form data-form="auth" data-setup="${setup}">${setup ? field("Your name", "name") : ""}${field("Email", "email", "", "email")}${field("Password · at least 12 characters", "password", "", "password")}<button class="button primary" type="submit">${setup ? "Create studio" : "Open studio"} <span>↗</span></button></form></section></main>`;
 }
 function render() {
+  stopCoverPreview();
   const p = state.project,
     list = shots(),
     selected = list.filter((s) => s.selected_take_id).length;
@@ -241,7 +243,7 @@ function shotInspector(sh: R) {
       x,
     ]),
     sh.status,
-  )}</div>${area("Action", "action", sh.action, 3)}${area("Character dialogue", "dialogue", sh.dialogue, 3)}${field("Camera & movement", "camera", sh.camera)}${area("Generation prompt", "prompt", sh.prompt, 4)}${area("Avoid / negative prompt", "negative_prompt", sh.negative_prompt, 2)}${area("Continuity notes", "continuity", sh.continuity, 2)}<button class="button primary">Save shot</button></form><div class="section-heading"><h3>World references</h3></div><form data-form="shot-assets"><div class="references">${state.workspace.assets.map((a: R) => `<label class="check-label"><input type="checkbox" name="asset" value="${a.id}" ${sh.assets.some((v: R) => v.id === a.id) ? "checked" : ""}><span>${esc(a.name)}<small>${esc(a.kind)}</small></span></label>`).join("") || '<p class="muted">Build your world library to link characters, locations and styles.</p>'}</div><button class="button">Save references</button></form><div class="section-heading"><h3>Takes <span>${sh.takes.length}</span></h3>${button("+ Import", "upload", `data-context="take"`, "link")}</div><div class="takes">${sh.takes.map((t: R) => `<article class="take ${t.id === sh.selected_take_id ? "chosen" : ""}">${preview(t.media_id)}<div class="take-heading"><strong>${esc(t.label)}</strong><span>${money(t.cost)}</span></div><p class="muted">${esc(t.provider)} ${esc(t.model)} · trim ${t.trim_in}s</p>${t.notes ? `<p>${esc(t.notes)}</p>` : ""}<div class="actions">${button(t.id === sh.selected_take_id ? "✓ Selected" : "Select take", "take-select", `data-id="${t.id}"`, t.id === sh.selected_take_id ? "button accent" : "button")}${button("Notes & trim", "take-edit", `data-id="${t.id}"`)}${button("×", "delete", `data-table="takes" data-id="${t.id}"`, "icon-button danger")}</div></article>`).join("") || '<p class="muted">Bring in a generated clip to compare and select takes.</p>'}</div><div class="inspector-footer">${button("Delete shot", "delete", `data-table="shots" data-id="${sh.id}"`, "link danger")}</div>`;
+  )}</div>${area("Action", "action", sh.action, 3)}${area("Character dialogue", "dialogue", sh.dialogue, 3)}${field("Camera & movement", "camera", sh.camera)}${area("Generation prompt", "prompt", sh.prompt, 4)}${area("Avoid / negative prompt", "negative_prompt", sh.negative_prompt, 2)}${area("Continuity notes", "continuity", sh.continuity, 2)}<button class="button primary">Save shot</button></form><div class="section-heading"><h3>World references</h3></div><form data-form="shot-assets"><div class="references">${state.workspace.assets.map((a: R) => `<label class="check-label"><input type="checkbox" name="asset" value="${a.id}" ${sh.assets.some((v: R) => v.id === a.id) ? "checked" : ""}><span>${esc(a.name)}<small>${esc(a.kind)}</small></span></label>`).join("") || '<p class="muted">Build your world library to link characters, locations and styles.</p>'}</div><button class="button">Save references</button></form><div class="section-heading"><h3>Takes <span>${sh.takes.length}</span></h3>${button("+ Import", "upload", `data-context="take"`, "link")}</div><div class="takes">${sh.takes.map((t: R) => `<article class="take ${t.id === sh.selected_take_id ? "chosen" : ""}">${preview(t.media_id)}<div class="take-heading"><strong>${esc(t.label)}</strong><span>${generationCost(t)}</span></div><p class="muted">${esc(t.provider)} ${esc(t.model)} · trim ${t.trim_in}s</p>${t.notes ? `<p>${esc(t.notes)}</p>` : ""}<div class="actions">${button(t.id === sh.selected_take_id ? "✓ Selected" : "Select take", "take-select", `data-id="${t.id}"`, t.id === sh.selected_take_id ? "button accent" : "button")}${button("Notes & trim", "take-edit", `data-id="${t.id}"`)}${button("×", "delete", `data-table="takes" data-id="${t.id}"`, "icon-button danger")}</div></article>`).join("") || '<p class="muted">Bring in a generated clip to compare and select takes.</p>'}</div><div class="inspector-footer">${button("Delete shot", "delete", `data-table="shots" data-id="${sh.id}"`, "link danger")}</div>`;
 }
 function soundView() {
   return `<section class="page"><div class="section-heading"><div><h2>Sound design</h2><p class="muted">Place dialogue, music, ambience and effects against the film timeline.</p></div>${button("+ Audio cue", "upload", `data-context="audio"`, "button primary")}</div><div class="audio-list">${state.project!.audio.map((a: R) => `<article><div class="audio-kind">${esc(a.kind)}</div><div class="audio-body"><h3>${esc(a.label)}</h3><audio src="${mediaUrl(a.media_id)}" controls></audio><p>${a.offset}s into film · ${a.duration}s long · source trim ${a.trim_in}s · gain ${a.volume}</p></div><div>${button("Edit", "audio-edit", `data-id="${a.id}"`)}${button("×", "delete", `data-table="audio_cues" data-id="${a.id}"`, "icon-button danger")}</div></article>`).join("") || '<div class="empty-panel"><h3>Give the world a voice.</h3><p>Upload audio and set its placement, source trim, duration and volume.</p></div>'}</div><p class="muted">Rough cuts use the separate audio cues. Audio embedded in generated video takes is excluded.</p></section>`;
@@ -253,6 +255,24 @@ function cutView() {
       (j: R) => j.project_id === state.project!.id && j.kind === "roughcut",
     );
   return `<section class="page"><div class="section-heading"><div><h2>See the story come together.</h2><p class="muted">Selected takes, in shot order, with your sound design.</p></div><div class="actions">${button("Refresh", "refresh")}${button("Render rough cut", "roughcut", ready ? "" : "disabled", "button primary")}</div></div><div class="cut-summary"><span>${list.length} shots</span><span>${list.reduce((n, s) => n + s.duration, 0).toFixed(1)} seconds</span><span>${state.project!.fps} fps</span><span>${state.project!.width} × ${state.project!.height}</span></div><div class="timeline">${list.map((s, i) => `<button data-action="cut-shot" data-id="${s.id}" class="timeline-clip ${s.selected_take_id ? "ready" : ""}" style="flex-grow:${Math.min(s.duration, 30)}"><span>${String(i + 1).padStart(2, "0")}</span><strong>${esc(s.title)}</strong><small>${s.duration}s ${s.selected_take_id ? "✓" : "missing take"}</small></button>`).join("")}</div>${!ready ? '<p class="warning">Select a video take for every shot before rendering or exporting.</p>' : ""}<div class="roughcuts">${jobs.map((j: R) => `<article><div class="section-heading"><h3>Rough cut <span class="status ${j.status}">${j.status}</span></h3><span>${esc(j.created_at)}</span></div>${j.output_media_id ? preview(j.output_media_id, "cut-player") : ""}${j.error ? `<p class="warning">${esc(j.error)}</p>` : ""}${j.status === "queued" || j.status === "running" ? '<p class="muted">Rendering locally with FFmpeg. Refresh to check progress.</p>' : ""}</article>`).join("")}</div><div class="handoff-note"><div><span class="eyebrow">THE FINAL CRAFT</span><h2>Finish in Resolve.</h2><p>Export a portable package with your original media, video EDL, audio placements and full production notes.</p><p class="muted">The EDL carries video cuts. Place audio tracks using the included manifest.</p></div>${button("Download handoff ↗", "handoff", ready ? "" : "disabled", "button primary")}</div></section>`;
+}
+function assetImages(asset: R): R[] {
+  return (asset.attachments || []).filter(
+    (ref: R) => ref.mime?.startsWith("image/") && ref.mime !== "image/svg+xml",
+  );
+}
+function assetCover(asset: R) {
+  const attachments: R[] = asset.attachments || [];
+  const images = assetImages(asset);
+  const image = images[0];
+  if (image) return `<button type="button" class="asset-cover" data-action="asset-image" data-id="${esc(asset.id)}" aria-label="View ${esc(asset.name)} image" title="Click to enlarge${images.length > 1 ? ' · Hover to preview images' : ''}"><img class="frame" src="${mediaUrl(image.media_id)}" alt="${esc(image.label || asset.name)}">${images.length > 1 ? `<span class="asset-cover-count">1 / ${images.length}</span>` : ''}</button>`;
+  const audio = asset.kind === "voice" || attachments.some(
+    (ref) => ref.mime?.startsWith("audio/"),
+  );
+  const icon = audio ? "♫" : ({
+    character: "♙", location: "⌂", prop: "◇", costume: "♧", style: "✦",
+  } as R)[asset.kind] || "◇";
+  return `<div class="asset-placeholder"${audio ? ' role="img" aria-label="Audio asset"' : ""}><span aria-hidden="true">${icon}</span></div>`;
 }
 function assetAttachments(asset: R) {
   const attachments: R[] = asset.attachments || [];
@@ -267,12 +287,12 @@ function assetAttachments(asset: R) {
   ).join("");
 }
 function libraryView() {
-  return `<section class="page"><div class="page-heading"><div><span class="eyebrow">CHARACTERS. PLACES. RULES OF THE WORLD.</span><h1>A world worth returning to.</h1><p>Shared across every production in this profile.</p></div><div class="actions">${button("Import assets", "assets-import")}${button("+ New asset", "asset-new", "", "button primary")}</div></div><div class="asset-grid">${state.workspace.assets.map((a: R) => `<article class="asset-card">${a.media_id ? preview(a.media_id) : `<div class="asset-placeholder"><span>${({ character: "♙", location: "⌂", prop: "◇", costume: "♧", style: "✦", voice: "≋" } as R)[a.kind]}</span></div>`}<div class="asset-card-body"><span class="eyebrow">${esc(a.kind)}</span><h2>${esc(a.name)}</h2><p>${esc(a.description.slice(0, 160))}</p><div class="actions">${button("Edit bible", "asset-edit", `data-id="${a.id}"`)}${button("Cover image", "upload", `data-context="asset" data-id="${a.id}"`)}${button("+ Attach file", "upload", `data-context="asset-attachment" data-id="${a.id}"`)}${button("×", "delete", `data-table="assets" data-id="${a.id}"`, "icon-button danger")}</div><details><summary>Supporting references (${(a.attachments || []).length})</summary>${assetAttachments(a)}</details></div></article>`).join("") || '<div class="empty-panel"><h2>Establish the constants.</h2><p>Add characters, locations, props, costumes, voices and visual styles. Give each a reference and continuity notes.</p></div>'}</div><div class="section-heading"><h2>Media shelf <span>${state.workspace.media.length}</span></h2>${button("+ Upload media", "upload", `data-context="media"`)}</div><div class="media-shelf">${state.workspace.media.map((m: R) => `<article>${preview(m.id)}<p>${esc(m.filename)}</p><small>${(m.size / 1048576).toFixed(1)} MB</small></article>`).join("")}</div></section>`;
+  return `<section class="page"><div class="page-heading"><div><span class="eyebrow">CHARACTERS. PLACES. RULES OF THE WORLD.</span><h1>A world worth returning to.</h1><p>Shared across every production in this profile.</p></div><div class="actions">${button("Import assets", "assets-import")}${button("+ New asset", "asset-new", "", "button primary")}</div></div><div class="asset-grid">${state.workspace.assets.map((a: R) => `<article class="asset-card">${assetCover(a)}<div class="asset-card-body"><span class="eyebrow">${esc(a.kind)}</span><h2>${esc(a.name)}</h2><p>${esc(a.description.slice(0, 160))}</p><div class="actions">${button("Edit bible", "asset-edit", `data-id="${a.id}"`)}${button("+ Attach file", "upload", `data-context="asset-attachment" data-id="${a.id}"`)}${button("×", "delete", `data-table="assets" data-id="${a.id}"`, "icon-button danger")}</div><details><summary>Supporting references (${(a.attachments || []).length})</summary>${assetAttachments(a)}</details></div></article>`).join("") || '<div class="empty-panel"><h2>Establish the constants.</h2><p>Add characters, locations, props, costumes, voices and visual styles. Give each a reference and continuity notes.</p></div>'}</div><div class="section-heading"><h2>Media shelf <span>${state.workspace.media.length}</span></h2>${button("+ Upload media", "upload", `data-context="media"`)}</div><div class="media-shelf">${state.workspace.media.map((m: R) => `<article>${preview(m.id)}<p>${esc(m.filename)}</p><small>${(m.size / 1048576).toFixed(1)} MB</small></article>`).join("")}</div></section>`;
 }
 function productionView() {
   const costs = state.workspace.spend || 0,
     jobs = state.workspace.jobs;
-  return `<section class="page"><div class="page-heading"><div><span class="eyebrow">PRODUCTION CONTROL</span><h1>Every attempt has a place.</h1><p>Durable jobs, original prompts, outputs and reported generation costs.</p></div>${button("Refresh jobs", "refresh")}</div><div class="cut-summary"><span>${jobs.filter((j: R) => j.status === "queued").length} queued</span><span>${jobs.filter((j: R) => j.status === "running").length} running</span><span>${money(costs)} recorded profile spend</span></div><p class="provider-note">${state.workspace.generatorConfigured ? "Local generation adapter connected." : "Generation adapter not configured. Import images and clips from your preferred tools, or configure an executable adapter."} Imported take costs appear in each shot.</p><div class="job-list">${jobs.map((j: R) => `<article><span class="job-icon">${j.kind === "roughcut" ? "▣" : j.kind === "image" ? "◇" : "▶"}</span><div><h3>${esc(j.kind)} <span class="status ${j.status}">${esc(j.status)}</span></h3><p>${esc(j.provider)} ${esc(j.model)} · ${esc(j.created_at)}</p><p class="job-prompt">${esc(j.prompt.slice(0, 180))}</p>${j.error ? `<p class="warning">${esc(j.error)}</p>` : ""}${j.output_media_id ? `<a class="link" href="${mediaUrl(j.output_media_id)}" target="_blank" rel="noopener">Open output ↗</a>` : ""}</div><strong>${money(j.cost)}</strong>${j.status === "queued" ? button("Cancel", "job-cancel", `data-id="${j.id}"`) : ""}</article>`).join("") || '<div class="empty-panel"><h3>Ready when you are.</h3><p>Generation attempts and rough-cut renders will appear here.</p></div>'}</div></section>`;
+  return `<section class="page"><div class="page-heading"><div><span class="eyebrow">PRODUCTION CONTROL</span><h1>Every attempt has a place.</h1><p>Durable jobs, original prompts, outputs and reported generation costs.</p></div>${button("Refresh jobs", "refresh")}</div><div class="cut-summary"><span>${jobs.filter((j: R) => j.status === "queued").length} queued</span><span>${jobs.filter((j: R) => j.status === "running").length} running</span><span>${money(costs)} recorded profile spend</span></div><p class="provider-note">${state.workspace.seedanceConfigured ? "BytePlus Seedance connected. BytePlus charges are not included in recorded spend; check your BytePlus billing." : state.workspace.generatorConfigured ? "Local generation adapter connected." : "Configure BytePlus Seedance in .env, or import generated media."} Imported take costs appear in each shot.</p><div class="job-list">${jobs.map((j: R) => `<article><span class="job-icon">${j.kind === "roughcut" ? "▣" : j.kind === "image" ? "◇" : "▶"}</span><div><h3>${esc(j.kind)} <span class="status ${j.status}">${esc(j.status)}</span></h3><p>${esc(j.provider)} ${esc(j.model)} · ${esc(j.created_at)}</p><p class="job-prompt">${esc(j.prompt.slice(0, 180))}</p>${j.error ? `<p class="warning">${esc(j.error)}</p>` : ""}${j.output_media_id ? `<a class="link" href="${mediaUrl(j.output_media_id)}" target="_blank" rel="noopener">Open output ↗</a>` : ""}</div><strong>${generationCost(j)}</strong>${j.status === "queued" ? button("Cancel", "job-cancel", `data-id="${j.id}"`) : ""}</article>`).join("") || '<div class="empty-panel"><h3>Ready when you are.</h3><p>Generation attempts and rough-cut renders will appear here.</p></div>'}</div></section>`;
 }
 function settingsView() {
   const p = state.profiles.find((p) => p.id === state.profile)!;
@@ -339,10 +359,41 @@ function cueFields(a?: R) {
     a?.kind || "dialogue",
   )}<div class="form-grid">${field("Timeline offset (s)", "offset", a?.offset || 0, "number")}${field("Source trim (s)", "trim_in", a?.trim_in || 0, "number")}${field("Duration (s)", "duration", a?.duration || 5, "number")}${field("Volume (0–4)", "volume", a?.volume ?? 1, "number")}</div>`;
 }
+function generationFields(provider: string) {
+  if (provider !== "byteplus") return select("Output", "kind", [["image", "Storyboard image"], ["video", "Video take"]], "image") + field("Model", "model") + '<p class="muted">Uses your local generation adapter and linked shot references.</p>';
+  const models: R[] = state.workspace.seedanceModels || [];
+  return `<input type="hidden" name="kind" value="video">` +
+    select("Seedance model", "model", models.map(m => [m.id, m.name]), models[0]?.id) +
+    `<p class="muted">Choose a model activated in your BytePlus account. This list is the supported catalogue, not a check of your account access.</p>` +
+    select("Image inputs", "mode", [["text", "Text only"], ["frames", "Shot first / last frames"], ["references", "Linked World reference images"]], currentShot()?.storyboard_id ? "frames" : "text") +
+    `<div class="form-grid">${field("Duration (seconds)", "duration", currentShot()?.duration || 5, "number")}${select("Resolution", "resolution", [["720p", "720p"], ["480p", "480p"]], "720p")}${select("Aspect ratio", "ratio", ["adaptive", "16:9", "9:16", "1:1", "4:3", "3:4", "21:9"].map(v => [v, v]), "adaptive")}${select("Sound", "audio", [["false", "Silent"], ["true", "Generate audio"]], "false")}</div>` +
+    `<p class="muted" id="seedance-capabilities"></p><p class="muted">Visual style, camera, dialogue and continuity text are included. Image inputs follow the selected mode; video and audio attachments are not uploaded. Generation is billed by BytePlus. Completed clips appear as new takes; refresh the shot or Production to check progress.</p>`;
+}
+function updateSeedanceFields() {
+  const form = dialog.querySelector<HTMLFormElement>('form[data-form="generate"]');
+  if (!form || new FormData(form).get("provider") !== "byteplus") return;
+  const model = state.workspace.seedanceModels.find((m: R) => m.id === new FormData(form).get("model"));
+  if (!model) return;
+  const duration = form.querySelector<HTMLInputElement>('[name="duration"]')!;
+  duration.min = String(model.minDuration);
+  duration.max = String(model.maxDuration);
+  duration.step = "1";
+  duration.required = true;
+  const mode = form.querySelector<HTMLSelectElement>('[name="mode"]')!;
+  mode.querySelector<HTMLOptionElement>('[value="references"]')!.disabled = !model.references;
+  if (!model.references && mode.value === "references") mode.value = "text";
+  const audio = form.querySelector<HTMLSelectElement>('[name="audio"]')!;
+  audio.disabled = !model.audio;
+  if (!model.audio) audio.value = "false";
+  const ratio = form.querySelector<HTMLSelectElement>('[name="ratio"]')!;
+  ratio.disabled = model.id === "dreamina-seedance-2-5-260628" && mode.value === "frames";
+  if (ratio.disabled) ratio.value = "adaptive";
+  form.querySelector("#seedance-capabilities")!.textContent = `${model.minDuration}–${model.maxDuration} seconds · ${model.references ? `Up to ${model.references} World images` : 'No World image references'} · ${model.lastFrame ? 'First and last frames supported' : 'First frame only'}`;
+}
 async function uploadModal(context: string, assetId = "") {
-  let content = `<label>Media file<input name="file" type="file" required accept="${context === "take" ? "video/*" : context === "audio" ? "audio/*" : context === "storyboard" || context === "endframe" || context === "asset" ? "image/*" : context === "asset-attachment" ? "*/*" : "image/*,audio/*,video/*,.txt,.md,.json,.pdf,.docx,.zip,.glb"}"></label>${field("Original local path (optional, for Resolve relinking)", "localPath")}`;
+  let content = `<label>Media file<input name="file" type="file" required accept="${context === "take" ? "video/*" : context === "audio" ? "audio/*" : context === "storyboard" || context === "endframe" ? "image/*" : context === "asset-attachment" ? "*/*" : "image/*,audio/*,video/*,.txt,.md,.json,.pdf,.docx,.zip,.glb"}"></label>${field("Original local path (optional, for Resolve relinking)", "localPath")}`;
   if (context === "asset-attachment")
-    content += field("Reference label", "label") + area("Reference notes", "notes", "", 3);
+    content += `<div class="attachment-paste" tabindex="0" role="group" aria-label="Paste an image"><strong>Or paste an image</strong><span>Copy an image, then press ⌘V or Ctrl+V here.</span><span class="attachment-selection" role="status"></span><img class="attachment-preview" alt="Selected attachment preview" hidden></div>` + field("Reference label", "label") + area("Reference notes", "notes", "", 3);
   if (context === "take")
     content += `${field("Take label", "label", `Take ${(currentShot()?.takes.length || 0) + 1}`)}${field("Provider", "provider", "manual")}${field("Model", "model")}${field("Cost (USD)", "cost", 0, "number")}${field("Source trim (s)", "trim_in", 0, "number")}${area("Original prompt", "prompt", currentShot()?.prompt)}${area("Review notes", "notes")}`;
   if (context === "audio") content += cueFields();
@@ -384,6 +435,16 @@ app.addEventListener("change", async (e) => {
 async function action(el: HTMLElement) {
   const a = el.dataset.action!,
     rid = el.dataset.id!;
+  if (a === "asset-image") {
+    stopCoverPreview();
+    const asset = state.workspace.assets.find((asset: R) => asset.id === rid);
+    viewerImages = assetImages(asset);
+    viewerIndex = Number(el.dataset.index || 0);
+    const cover = el.querySelector<HTMLImageElement>("img")!;
+    imageViewer.innerHTML = `<button type="button" class="image-viewer-close icon-button" aria-label="Close image viewer" autofocus>×</button><img src="${esc(cover.src)}" alt="${esc(cover.alt)}">${viewerImages.length > 1 ? `<button type="button" class="image-viewer-prev icon-button" aria-label="Previous image">←</button><button type="button" class="image-viewer-next icon-button" aria-label="Next image">→</button><span class="image-viewer-count" role="status">${viewerIndex + 1} / ${viewerImages.length}</span>` : ''}`;
+    imageViewer.showModal();
+    return;
+  }
   if (a === "retry") {
     await init();
     return;
@@ -593,33 +654,23 @@ async function action(el: HTMLElement) {
     if (!state.workspace.generatorConfigured) {
       modal(
         "Connect your generation tools",
-        `<p>Use Import to bring in images and clips from Seedance, Kling, Veo or other tools.</p><p>For direct generation, configure a local executable with the adapter contract in <code>docs/generator-adapter.md</code>, then restart the studio.</p>`,
+        `<p>Use Import to bring in images and clips from Seedance, Kling, Veo or other tools.</p><p>For Seedance, add <code>BYTEPLUS_MODELARK_API_KEY</code> to the project’s <code>.env</code> file and restart the studio. Alternatively, configure a local adapter using <code>docs/generator-adapter.md</code>.</p>`,
         "info",
       );
       return;
     }
+    const providers: [string, string][] = [];
+    if (state.workspace.seedanceConfigured) providers.push(["byteplus", "BytePlus · Seedance"]);
+    if (state.workspace.adapterConfigured) providers.push(["custom", "Local adapter"]);
     modal(
       "A new generation attempt",
-      select(
-        "Output",
-        "kind",
-        [
-          ["image", "Storyboard image"],
-          ["video", "Video take"],
-        ],
-        "image",
-      ) +
-        field("Provider", "provider", "custom") +
-        field("Model", "model") +
-        area(
-          "Prompt",
-          "prompt",
-          currentShot()?.prompt || currentShot()?.action,
-          8,
-        ) +
-        `<p class="muted">The request includes linked world assets, continuity notes, duration, camera, first and last frame references. Costs are returned by your adapter.</p>`,
+      select("Generation service", "provider", providers, providers[0][0]) +
+        `<div id="generation-options">${generationFields(providers[0][0])}</div>` +
+        area("Prompt", "prompt", currentShot()?.prompt || currentShot()?.action, 8),
       "generate",
     );
+    dialog.querySelector<HTMLButtonElement>('button[type="submit"]')!.textContent = "Generate";
+    updateSeedanceFields();
     return;
   }
   if (a === "member-remove") {
@@ -889,8 +940,6 @@ async function submit(form: HTMLFormElement) {
           ? { status: "storyboard" }
           : {}),
       });
-    if (context === "asset")
-      await request(url(`assets/${rid}`), "PATCH", { media_id: m.id });
     if (context === "asset-attachment")
       await request(url(`assets/${rid}/attachments`), "POST", {
         media_id: m.id,
@@ -922,6 +971,81 @@ async function submit(form: HTMLFormElement) {
   await loadWorkspace();
   notice("Saved to your studio.");
 }
+const imageViewer = document.createElement("dialog");
+let viewerImages: R[] = [];
+let viewerIndex = 0;
+function cycleViewer(direction: number) {
+  if (viewerImages.length < 2) return;
+  viewerIndex = (viewerIndex + direction + viewerImages.length) % viewerImages.length;
+  const ref = viewerImages[viewerIndex];
+  const image = imageViewer.querySelector<HTMLImageElement>("img")!;
+  image.src = mediaUrl(ref.media_id);
+  image.alt = ref.label || ref.filename || "Reference image";
+  imageViewer.querySelector(".image-viewer-count")!.textContent = `${viewerIndex + 1} / ${viewerImages.length}`;
+}
+imageViewer.className = "image-viewer";
+imageViewer.setAttribute("aria-label", "Full image preview");
+document.body.append(imageViewer);
+imageViewer.addEventListener("click", (e) => {
+  const target = e.target as HTMLElement;
+  if (target.closest(".image-viewer-prev")) cycleViewer(-1);
+  else if (target.closest(".image-viewer-next")) cycleViewer(1);
+  else if (e.target === imageViewer || target.closest(".image-viewer-close"))
+    imageViewer.close();
+});
+imageViewer.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+    e.preventDefault();
+    cycleViewer(e.key === "ArrowLeft" ? -1 : 1);
+  }
+});
+imageViewer.addEventListener("close", () => {
+  imageViewer.replaceChildren();
+  viewerImages = [];
+});
+
+let coverTimer: ReturnType<typeof setTimeout> | undefined;
+let hoveredCover: HTMLButtonElement | null = null;
+function stopCoverPreview() {
+  clearTimeout(coverTimer);
+  hoveredCover = null;
+}
+app.addEventListener("pointerover", (e) => {
+  if (e.pointerType !== "mouse" || e.buttons || imageViewer.open) return;
+  const cover = (e.target as HTMLElement).closest<HTMLButtonElement>(".asset-cover");
+  if (!cover || cover === hoveredCover) return;
+  stopCoverPreview();
+  const asset = state.workspace.assets.find((a: R) => a.id === cover.dataset.id);
+  const images = asset ? assetImages(asset) : [];
+  if (images.length < 2) return;
+  hoveredCover = cover;
+  const advance = () => {
+    if (hoveredCover !== cover || !cover.isConnected) return;
+    const index = (Number(cover.dataset.index || 0) + 1) % images.length;
+    const next = new Image();
+    next.onload = () => {
+      if (hoveredCover !== cover || !cover.isConnected) return;
+      next.className = "frame";
+      next.alt = images[index].label || asset.name;
+      cover.querySelector("img")!.replaceWith(next);
+      cover.dataset.index = String(index);
+      cover.querySelector(".asset-cover-count")!.textContent = `${index + 1} / ${images.length}`;
+      coverTimer = setTimeout(advance, 650);
+    };
+    next.src = mediaUrl(images[index].media_id);
+  };
+  coverTimer = setTimeout(advance, 650);
+});
+app.addEventListener("pointerout", (e) => {
+  if (hoveredCover && !(e.relatedTarget instanceof Node && hoveredCover.contains(e.relatedTarget)))
+    stopCoverPreview();
+});
+app.addEventListener("pointerdown", stopCoverPreview);
+window.addEventListener("blur", stopCoverPreview);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) stopCoverPreview();
+});
+
 document.addEventListener("click", async (e) => {
   const el = (e.target as HTMLElement).closest<HTMLElement>("[data-action]");
   if (!el) return;
@@ -949,8 +1073,47 @@ document.addEventListener("submit", async (e) => {
     if (btn) btn.disabled = false;
   }
 });
+let attachmentPreviewUrl: string | undefined;
+function clearAttachmentPreview() {
+  if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
+  attachmentPreviewUrl = undefined;
+}
+function updateAttachmentPreview(input: HTMLInputElement) {
+  clearAttachmentPreview();
+  const preview = dialog.querySelector<HTMLImageElement>(".attachment-preview");
+  const selection = dialog.querySelector<HTMLElement>(".attachment-selection");
+  if (!preview || !selection) return;
+  const file = input.files?.[0];
+  selection.textContent = file ? `Selected: ${file.name}` : "";
+  preview.hidden = true;
+  preview.removeAttribute("src");
+  if (file?.type.startsWith("image/") && file.type !== "image/svg+xml") {
+    attachmentPreviewUrl = URL.createObjectURL(file);
+    preview.src = attachmentPreviewUrl;
+    preview.hidden = false;
+  }
+}
+dialog.addEventListener("close", clearAttachmentPreview);
+dialog.addEventListener("paste", (e) => {
+  const input = dialog.querySelector<HTMLInputElement>('form[data-context="asset-attachment"] input[name="file"]');
+  if (!input) return;
+  const file = Array.from(e.clipboardData?.items || [])
+    .find((item) => item.kind === "file" && item.type.startsWith("image/"))?.getAsFile();
+  if (!file) return;
+  e.preventDefault();
+  const transfer = new DataTransfer();
+  transfer.items.add(file);
+  input.files = transfer.files;
+  updateAttachmentPreview(input);
+});
 dialog.addEventListener("change", async (e) => {
   const input = e.target as HTMLInputElement;
+  if (input.closest('form[data-form="generate"]')) {
+    if (input.name === "provider")
+      dialog.querySelector("#generation-options")!.innerHTML = generationFields(input.value);
+    updateSeedanceFields();
+  }
+  if (input.name === "file") updateAttachmentPreview(input);
   if (!["shots-import-file", "assets-import-file"].includes(input.id) || !input.files?.length) return;
   const file = input.files[0];
   if (file.size > 1_000_000) {

@@ -6,6 +6,8 @@ const root = await mkdtemp(join(tmpdir(), "mothlight-tests-"));
 process.env.MOTHLIGHT_DATA_DIR = root;
 delete process.env.MOTHLIGHT_HOSTED;
 delete process.env.MOTHLIGHT_GENERATOR;
+delete process.env.BYTEPLUS_MODELARK_API_KEY;
+delete process.env.MOTHLIGHT_SEEDANCE_MODELS;
 const { handle } = await import("../src/server/index");
 const { db, one, all, run, openDatabase } = await import("../src/server/db");
 const { createUser, cookie } = await import("../src/server/auth");
@@ -644,6 +646,97 @@ test("provider jobs store the prompt and references, create takes, and expose ex
     "failed",
   );
   delete process.env.MOTHLIGHT_GENERATOR;
+});
+
+test("Seedance validates model capabilities and keeps image input modes separate", async () => {
+  const { seedanceOptions, seedancePayload, seedanceModels } = await import("../src/server/seedance");
+  const model = seedanceModels[0].id;
+  const file = join(root, "reference.png");
+  await Bun.write(file, new Uint8Array([1, 2, 3]));
+  const input = { shot: { duration: 5, camera: "Pan slowly", continuity: "Blue coat" }, project: { style: "Watercolour" }, firstFrame: file, lastFrame: file,
+    assets: [{ name: "Hero", description: "Detective", attachments: [{ mime: "image/png", localPath: file, filename: "Hero.png" }] }] };
+  expect(() => seedanceOptions("unknown", {}, input)).toThrow("supported");
+  expect(() => seedanceOptions(model, { duration: 3 }, input)).toThrow("4–30");
+  expect(() => seedanceOptions(model, { duration: 5.5 }, input)).toThrow("whole-second");
+  expect(() => seedanceOptions(model, { mode: "frames", ratio: "16:9" }, input)).toThrow("adaptive");
+  expect(() => seedanceOptions(seedanceModels[5].id, { mode: "frames" }, input)).toThrow("last frame");
+  expect(() => seedanceOptions(seedanceModels[4].id, { mode: "references" }, input)).toThrow("World reference");
+  expect(() => seedanceOptions(seedanceModels[4].id, { audio: "true" }, input)).toThrow("audio");
+  const frames = await seedancePayload(model, "Run", { ...input, seedance: { mode: "frames" } });
+  expect(frames.content.map(c => c.role).filter(Boolean)).toEqual(["first_frame", "last_frame"]);
+  expect(frames.content[1].image_url.url).toBe("data:image/png;base64,AQID");
+  const refs = await seedancePayload(model, "Run", { ...input, seedance: { mode: "references" } });
+  expect(refs.content.map(c => c.role).filter(Boolean)).toEqual(["reference_image"]);
+  expect(refs.content[0].text).toContain("@Image1: Hero");
+  expect(refs.content[0].text).toContain("Pan slowly");
+  expect(refs.content[0].text).toContain("Blue coat");
+  const text = await seedancePayload(model, "Run", input);
+  expect(text.content).toHaveLength(1);
+});
+
+test("BytePlus jobs download into takes, retain task usage, and never expose the key", async () => {
+  const originalFetch = globalThis.fetch;
+  process.env.BYTEPLUS_MODELARK_API_KEY = "test-secret-never-send";
+  try {
+    const workspace = (await call(p("workspace"))).data;
+    expect(workspace.seedanceConfigured).toBe(true);
+    expect(JSON.stringify(workspace)).not.toContain(process.env.BYTEPLUS_MODELARK_API_KEY);
+    const model = workspace.seedanceModels[0].id;
+    const body = { shot_id: shot.id, kind: "video", provider: "byteplus", model, prompt: "A steady camera", duration: 5, mode: "text" };
+    expect((await call(p("jobs"), "POST", { ...body, model: "unknown" })).status).toBe(400);
+    expect((await call(p("jobs"), "POST", { ...body, kind: "image" })).status).toBe(400);
+    const response = await call(p("jobs"), "POST", body);
+    expect(response.status).toBe(202);
+    let posts = 0;
+    globalThis.fetch = (async (target: any, init: any) => {
+      const address = String(target);
+      if (address === "https://video.example.test/output.mp4") {
+        expect(init.headers).toBeUndefined();
+        return new Response("test-video", { headers: { "Content-Type": "video/mp4" } });
+      }
+      expect(address).toStartWith("https://ark.ap-southeast.bytepluses.com/");
+      expect(init.headers.Authorization).toBe("Bearer test-secret-never-send");
+      if (init.method === "POST") {
+        posts++;
+        expect(JSON.parse(init.body).model).toBe(model);
+        return Response.json({ id: "cgt-test" });
+      }
+      return Response.json({ status: "succeeded", usage: { completion_tokens: 123 }, content: { video_url: "https://video.example.test/output.mp4" } });
+    }) as typeof fetch;
+    await tick();
+    const job = one("SELECT * FROM jobs WHERE id=?", response.data.id)!;
+    expect(job.status).toBe("succeeded");
+    expect(posts).toBe(1);
+    expect(JSON.parse(job.input_json).byteplusTask).toEqual({ id: "cgt-test", status: "succeeded", usage: { completion_tokens: 123 } });
+    expect(job.input_json).not.toContain("test-secret");
+    expect(one("SELECT * FROM takes WHERE media_id=?", job.output_media_id)!.model).toBe(model);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.BYTEPLUS_MODELARK_API_KEY;
+  }
+});
+
+test("Seedance polls without resubmitting and reports failed tasks without credentials", async () => {
+  const { generateSeedance, seedanceModels } = await import("../src/server/seedance");
+  process.env.BYTEPLUS_MODELARK_API_KEY = "secret-for-test";
+  try {
+    let polls = 0, posts = 0, sleeps = 0;
+    const tasks: any[] = [];
+    const mockFetch = (async (_target: any, init: any) => {
+      if (init.method === "POST") { posts++; return Response.json({ id: "cgt-failed" }); }
+      polls++;
+      return Response.json(polls === 1 ? { status: "running" } : { status: "failed", error: { message: "Refused secret-for-test" } });
+    }) as typeof fetch;
+    await expect(generateSeedance(seedanceModels[0].id, "test", { shot: { duration: 5 }, assets: [] }, t => tasks.push(t),
+      { fetch: mockFetch, sleep: async () => { sleeps++; } })).rejects.toThrow("BytePlus task cgt-failed: Refused [redacted]");
+    expect(posts).toBe(1);
+    expect(polls).toBe(2);
+    expect(sleeps).toBe(1);
+    expect(tasks[0].id).toBe("cgt-failed");
+    await expect(generateSeedance(seedanceModels[0].id, "test", { shot: { duration: 5 } }, () => {}, {
+      fetch: (async () => Response.json({ error: { message: "Invalid secret-for-test" } }, { status: 401 })) as unknown as typeof fetch,
+    })).rejects.toThrow("BytePlus: Invalid [redacted]");
+  } finally { delete process.env.BYTEPLUS_MODELARK_API_KEY; }
 });
 
 test("screenplay import preserves dialogue and appends scenes without replacing existing work", async () => {

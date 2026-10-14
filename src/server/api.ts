@@ -16,6 +16,7 @@ import {
 } from "./auth";
 import { projectDocument, projectShots, resolveExport } from "./export";
 import { storeMedia, mediaPath, execProcess } from "./worker";
+import { availableSeedanceModels, seedanceConfigured, seedanceOptions } from "./seedance";
 export const json = (
   value: unknown,
   status = 200,
@@ -507,7 +508,10 @@ export async function api(req: Request): Promise<Response> {
         "SELECT * FROM jobs WHERE profile_id=? ORDER BY created_at DESC,id LIMIT 100",
         pid,
       ),
-      generatorConfigured: !!process.env.MOTHLIGHT_GENERATOR,
+      generatorConfigured: !!process.env.MOTHLIGHT_GENERATOR || seedanceConfigured(),
+      adapterConfigured: !!process.env.MOTHLIGHT_GENERATOR,
+      seedanceConfigured: seedanceConfigured(),
+      seedanceModels: availableSeedanceModels(),
     });
   if (parts[0] === "media") {
     if (parts[1] && ["GET", "HEAD"].includes(req.method)) {
@@ -956,8 +960,8 @@ export async function api(req: Request): Promise<Response> {
         "Choose image or video.",
       );
       requireValue(
-        process.env.MOTHLIGHT_GENERATOR,
-        "No generator configured. Upload externally generated media, or configure the adapter.",
+        b.provider === "byteplus" ? seedanceConfigured() : process.env.MOTHLIGHT_GENERATOR,
+        b.provider === "byteplus" ? "Set BYTEPLUS_MODELARK_API_KEY in .env and restart Mothlight." : "No generator configured. Upload externally generated media, or configure the adapter.",
         409,
       );
       const shot = scopedRecord("shots", b.shot_id, pid),
@@ -972,7 +976,7 @@ export async function api(req: Request): Promise<Response> {
         "prompt",
       );
       requireValue(prompt.trim(), "Prompt required.");
-      const input = {
+      const input: Row = {
         shot,
         project,
         assets: refs.map((a) => ({
@@ -995,6 +999,10 @@ export async function api(req: Request): Promise<Response> {
           ? mediaPath(scopedRecord("media", shot.end_frame_id, pid))
           : null,
       };
+      if (b.provider === "byteplus") {
+        requireValue(b.kind === "video", "Seedance generates video takes, not storyboard images.");
+        input.seedance = seedanceOptions(b.model, b, input);
+      }
       const jid = id();
       run(
         "INSERT INTO jobs(id,profile_id,shot_id,project_id,kind,provider,model,prompt,input_json) VALUES(?,?,?,?,?,?,?,?,?)",

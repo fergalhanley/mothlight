@@ -921,10 +921,101 @@ input[type="file"] {
   border-radius: 5px;
   overflow: hidden;
 }
-.asset-card > .frame {
+.asset-card > .frame,
+.asset-cover > .frame {
   border: 0;
   border-radius: 0;
   display: block;
+}
+.asset-cover {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+.asset-cover:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: -3px;
+}
+.asset-cover-count {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  border-radius: 4px;
+  padding: 4px 8px;
+  background: #09060dcc;
+  color: #fff;
+  font-size: 12px;
+  pointer-events: none;
+}
+dialog.image-viewer {
+  width: 100vw;
+  height: 100dvh;
+  max-width: 100vw;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 56px 16px 16px;
+  border: 0;
+  border-radius: 0;
+  background: #09060df2;
+  overflow: hidden;
+}
+.image-viewer > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.image-viewer .image-viewer-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  font-size: 28px;
+}
+body:has(.image-viewer[open]) {
+  overflow: hidden;
+}
+.image-viewer .image-viewer-prev,
+.image-viewer .image-viewer-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  font-size: 26px;
+  background: #09060dcc;
+  color: #fff;
+}
+.image-viewer-prev { left: 12px; }
+.image-viewer-next { right: 12px; }
+.image-viewer-count {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.attachment-paste {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px dashed var(--muted);
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.attachment-paste:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.attachment-preview {
+  max-width: 100%;
+  max-height: 160px;
+  object-fit: contain;
 }
 .asset-card-body {
   padding: 20px;

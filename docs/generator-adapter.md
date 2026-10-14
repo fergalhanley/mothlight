@@ -55,4 +55,4 @@ console.log(JSON.stringify({outputPath: source, cost: 0}));
 
 Save outside the repository as `adapter.ts`, make it executable (`chmod +x adapter.ts`), and configure its absolute path. For real generation, replace the fixture operation with your provider's SDK/API, keep credentials in the server environment, and wait for the provider to finish before returning.
 
-The studio has no built-in Seedance, Kling, Veo, ElevenLabs or language-model implementation yet. Each can use this boundary; first/last-frame support and other capabilities must be validated against the particular provider/model rather than implied by a generic UI.
+The studio has built-in BytePlus Seedance video generation (see the README). Kling, Veo, ElevenLabs and language-model integrations can use this adapter boundary; first/last-frame support and other capabilities must be validated against the particular provider/model rather than implied by a generic UI.

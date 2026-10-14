@@ -86,7 +86,21 @@ Once you have scenes (for example from Story → Import Fountain), choose **Shot
 
 ## Generation tools
 
-External image/video tools work immediately through media import. Direct generation uses a **provider-neutral local executable adapter**. Configure `MOTHLIGHT_GENERATOR` in `.env` and restart the server. See [the adapter contract](docs/generator-adapter.md).
+BytePlus Seedance video generation is built in. Put your ModelArk API key in the repository-root `.env` file:
+
+```dotenv
+BYTEPLUS_MODELARK_API_KEY=your-key-here
+```
+
+Restart `bun run dev`, select a shot, and click **Generate**. Choose **BytePlus · Seedance**, a model, image input mode, duration, resolution and audio setting. Activate your chosen model in the [BytePlus console](https://ai.byteplus.com/ark/region:ap-southeast-1) first. The dropdown is a supported catalogue, not a live account-access check. Optionally set `MOTHLIGHT_SEEDANCE_MODELS` to a comma-separated subset of supported model IDs to show only the models you use.
+
+The catalogue includes Seedance 2.5, 2.0, 2.0 Fast, 2.0 Mini, 1.0 Pro and 1.0 Pro Fast, checked against the [BytePlus model list](https://docs.byteplus.com/en/docs/modelark/model-list) on 2026-10-14. Seedance 1.5 is omitted because BytePlus marks it retired. This integration offers 480p/720p output. First/last frame inputs and World image references are separate modes; video/audio attachments are not sent. World descriptions and shot direction are included as text in all modes. Input images must meet BytePlus size and dimension requirements.
+
+Generation runs in the background and downloads the finished MP4 into the shot’s takes. Refresh the shot or **Production** to see progress. The provider task ID and token usage are retained in the job snapshot. Failed or interrupted requests are never automatically resubmitted; check the BytePlus task history before trying again. The API returns token usage, not final account billing, so BytePlus jobs display **See BytePlus billing** and do not add an estimated charge to recorded spend.
+
+The key stays on the server; `.env` is ignored by Git. No paid generation is performed just by configuring the key or selecting a model.
+
+Other image/video tools work through media import or a **provider-neutral local executable adapter**. Configure `MOTHLIGHT_GENERATOR` in `.env` and restart the server. See [the adapter contract](docs/generator-adapter.md).
 
 The executable receives a JSON snapshot containing the shot, camera, dialogue, duration, negative prompt, project style, linked asset descriptions/continuity and local first/last/reference image paths. It returns an output path and actual reported cost. Successful video jobs create new takes; successful image jobs attach storyboard frames. Takes are never selected automatically.
 

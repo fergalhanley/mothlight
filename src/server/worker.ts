@@ -3,6 +3,7 @@ import { mkdir, rm, copyFile } from "node:fs/promises";
 import { all, one, run, id, dataDir, type Row } from "./db";
 import { projectShots, frameCount } from "./export";
 import { requireValue } from "./auth";
+import { generateSeedance } from "./seedance";
 export const mediaPath = (m: Row) => join(dataDir, "media", m.stored_name);
 let busy = false;
 export async function execProcess(
@@ -166,6 +167,16 @@ async function renderCut(job: Row) {
   }
 }
 async function generate(job: Row) {
+  if (job.provider === "byteplus") {
+    const input = JSON.parse(job.input_json);
+    const video = await generateSeedance(job.model, job.prompt, input, (task) => {
+      input.byteplusTask = task;
+      run("UPDATE jobs SET input_json=? WHERE id=?", JSON.stringify(input), job.id);
+    });
+    const media = await storeMedia(job.profile_id, video, `seedance-${job.id}.mp4`, "video/mp4");
+    // ModelArk returns token usage, not the account's final billed USD amount.
+    return { media, cost: 0 };
+  }
   const adapter = process.env.MOTHLIGHT_GENERATOR;
   requireValue(
     adapter,
