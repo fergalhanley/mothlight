@@ -20,7 +20,7 @@ Open **http://localhost:3000** and create your studio account. No cloud account,
 ## Make a film
 
 1. Create a **profile** for a body of work. Profiles separate projects, series, world assets, uploaded media and production jobs. One user can work in several profiles.
-2. Create a **series** and its world bible, if the films share a universe. Create a short, episode or feature inside it.
+2. Create a **series** and its world bible, if the films share a universe. Create a short, episode or feature inside it. After creating a series, it appears in **Film settings → Series** for projects in the same profile. You can also enter **Or create a new series** inside Film settings and save the film to create/select it in one step.
 3. Write a treatment and visual direction in **Story**. Add scenes manually or import a Fountain/plain-text screenplay with `INT.` and `EXT.` scene headings. Imports append scenes and preserve the original action and dialogue.
 4. Build the profile's **World library**: characters, locations, props, costumes, visual styles and voices. Record their descriptions, reusable prompts, continuity rules and reference media. Use **Import assets** to load a reusable world asset pack from JSON, then attach as many supporting reference files as needed to each asset.
 5. In **Shot workspace**, break each scene into shots. Set action, dialogue, camera movement, duration and continuity. Link the relevant world assets. Reorder scenes and shots using their up/down controls. Alternatively, **Import shots** accepts a numbered Markdown shot breakdown; it previews scene matches and incoming counts before making one atomic import. Existing shots are retained, and adding to occupied scenes requires explicit **Append**.
