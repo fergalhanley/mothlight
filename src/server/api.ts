@@ -17,6 +17,7 @@ import {
 import { projectDocument, projectShots, resolveExport } from "./export";
 import { storeMedia, mediaPath, execProcess } from "./worker";
 import { availableSeedanceModels, seedanceConfigured, seedanceOptions } from "./seedance";
+import { IMAGE_MODELS, imageConfigured } from "./images";
 export const json = (
   value: unknown,
   status = 200,
@@ -512,6 +513,12 @@ export async function api(req: Request): Promise<Response> {
       adapterConfigured: !!process.env.MOTHLIGHT_GENERATOR,
       seedanceConfigured: seedanceConfigured(),
       seedanceModels: availableSeedanceModels(),
+      imageProviders: {
+        openai: imageConfigured("openai"),
+        google: imageConfigured("google"),
+        custom: imageConfigured("custom"),
+      },
+      imageModels: IMAGE_MODELS,
     });
   if (parts[0] === "media") {
     if (parts[1] && ["GET", "HEAD"].includes(req.method)) {
@@ -959,11 +966,22 @@ export async function api(req: Request): Promise<Response> {
         ["image", "video"].includes(b.kind),
         "Choose image or video.",
       );
+      const provider = textField(b.provider || "custom", "provider", 100);
+      const nativeImage = provider === "openai" || provider === "google";
       requireValue(
-        b.provider === "byteplus" ? seedanceConfigured() : process.env.MOTHLIGHT_GENERATOR,
-        b.provider === "byteplus" ? "Set BYTEPLUS_MODELARK_API_KEY in .env and restart Mothlight." : "No generator configured. Upload externally generated media, or configure the adapter.",
+        provider === "byteplus" ? b.kind === "video" && seedanceConfigured()
+          : nativeImage ? b.kind === "image" && imageConfigured(provider)
+          : provider === "custom" && imageConfigured("custom"),
+        "Selected generation service is unavailable. Configure its API key or local adapter in Settings.",
         409,
       );
+      if (nativeImage) {
+        const models = IMAGE_MODELS[provider];
+        requireValue(models.some((m) => m.id === b.model), "Unsupported image model.");
+      }
+      const frameTarget = b.kind === "image" ? (b.frameTarget || "storyboard") : null;
+      if (b.kind === "image")
+        requireValue(["storyboard", "endframe", "both"].includes(frameTarget), "Choose storyboard, end frame, or both.");
       const shot = scopedRecord("shots", b.shot_id, pid),
         scene = scopedRecord("scenes", shot.scene_id, pid),
         project = scopedRecord("projects", scene.project_id, pid);
@@ -971,51 +989,45 @@ export async function api(req: Request): Promise<Response> {
         "SELECT a.* FROM assets a JOIN shot_assets sa ON sa.asset_id=a.id WHERE sa.shot_id=?",
         shot.id,
       );
-      const prompt = textField(
-        b.prompt || shot.prompt || shot.action,
-        "prompt",
-      );
+      const prompt = textField(b.prompt || shot.prompt || shot.action, "prompt");
       requireValue(prompt.trim(), "Prompt required.");
       const input: Row = {
         shot,
         project,
         assets: refs.map((a) => ({
           ...a,
-          referencePath: a.media_id
-            ? mediaPath(scopedRecord("media", a.media_id, pid))
-            : null,
+          referencePath: a.media_id ? mediaPath(scopedRecord("media", a.media_id, pid)) : null,
           attachments: all(
             "SELECT aa.*,m.filename,m.mime,m.stored_name FROM asset_attachments aa JOIN media m ON m.id=aa.media_id WHERE aa.asset_id=? ORDER BY aa.position",
             a.id,
-          ).map((ref) => ({
-            ...ref,
-            localPath: mediaPath(ref),
-          })),
+          ).map((ref) => ({ ...ref, localPath: mediaPath(ref) })),
         })),
-        firstFrame: shot.storyboard_id
-          ? mediaPath(scopedRecord("media", shot.storyboard_id, pid))
-          : null,
-        lastFrame: shot.end_frame_id
-          ? mediaPath(scopedRecord("media", shot.end_frame_id, pid))
-          : null,
+        firstFrame: shot.storyboard_id ? mediaPath(scopedRecord("media", shot.storyboard_id, pid)) : null,
+        lastFrame: shot.end_frame_id ? mediaPath(scopedRecord("media", shot.end_frame_id, pid)) : null,
       };
-      if (b.provider === "byteplus") {
-        requireValue(b.kind === "video", "Seedance generates video takes, not storyboard images.");
+      if (provider === "byteplus") {
+        requireValue(b.kind === "video", "Seedance generates video takes, not still images.");
         input.seedance = seedanceOptions(b.model, b, input);
       }
-      const jid = id();
-      run(
-        "INSERT INTO jobs(id,profile_id,shot_id,project_id,kind,provider,model,prompt,input_json) VALUES(?,?,?,?,?,?,?,?,?)",
-        jid,
-        pid,
-        shot.id,
-        project.id,
-        b.kind,
-        textField(b.provider || "custom", "provider", 100),
-        textField(b.model || "", "model", 200),
-        prompt,
-        JSON.stringify(input),
-      );
+      const create = (target: string | null, dependsOnJobId: string | null) => {
+        const jid = id();
+        run(
+          "INSERT INTO jobs(id,profile_id,shot_id,project_id,kind,provider,model,prompt,input_json) VALUES(?,?,?,?,?,?,?,?,?)",
+          jid, pid, shot.id, project.id, b.kind, provider,
+          textField(b.model || "", "model", 200), prompt,
+          JSON.stringify({ ...input, frameTarget: target, dependsOnJobId }),
+        );
+        return jid;
+      };
+      if (frameTarget === "both") {
+        const ids = db.transaction(() => {
+          const storyboard = create("storyboard", null);
+          const endframe = create("endframe", storyboard);
+          return [storyboard, endframe];
+        })();
+        return json({ ids, queued: 2 }, 202);
+      }
+      const jid = create(frameTarget, null);
       return json(scopedRecord("jobs", jid, pid), 202);
     }
   }
