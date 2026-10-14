@@ -23,11 +23,37 @@ Open **http://localhost:3000** and create your studio account. No cloud account,
 2. Create a **series** and its world bible, if the films share a universe. Create a short, episode or feature inside it.
 3. Write a treatment and visual direction in **Story**. Add scenes manually or import a Fountain/plain-text screenplay with `INT.` and `EXT.` scene headings. Imports append scenes and preserve the original action and dialogue.
 4. Build the profile's **World library**: characters, locations, props, costumes, visual styles and voices. Record their descriptions, reusable prompts, continuity rules and reference media.
-5. In **Shot workspace**, break each scene into shots. Set action, dialogue, camera movement, duration and continuity. Link the relevant world assets. Reorder scenes and shots using their up/down controls.
+5. In **Shot workspace**, break each scene into shots. Set action, dialogue, camera movement, duration and continuity. Link the relevant world assets. Reorder scenes and shots using their up/down controls. Alternatively, **Import shots** accepts a numbered Markdown shot breakdown; it previews scene matches and incoming counts before making one atomic import. Existing shots are retained, and adding to occupied scenes requires explicit **Append**.
 6. Import a storyboard and optional end frame. Import multiple video takes, record provider/model/prompt/cost and review notes, set source trim, compare them, and select a take. Approval requires a selected take.
 7. In **Sound**, import dialogue, music, effects and ambience. Set timeline offset, source trim, duration and gain for each cue. A voice asset is a bible/reference entry, not a built-in TTS generator.
 8. In **Rough cut**, render the selected shots with FFmpeg. The app normalizes dimensions and frame rate, fits media without cropping, and holds the final frame when a clip is shorter than its planned shot. A queued render captures the project settings, takes and cue timings at submission. Rendered video uses the separate audio cues; embedded take audio is excluded.
 9. Download the **Resolve handoff** ZIP. It contains a CMX3600 video EDL, original selected video/audio files, a timing/relink manifest and production JSON. Import the EDL at the manifest frame rate, relink to the `media` directory, and place audio cues using the manifest. Audio track placement is not encoded in the video EDL. This first version supports straight cuts at 24, 25 and 30 fps, without transitions or a full nonlinear editor.
+
+## Markdown shot breakdown import
+
+Once you have scenes (for example from Story → Import Fountain), choose **Shot workspace → Import shots**, select a local Markdown file or paste its text, and press **Preview import**. Verify the scene list before confirming. Scene numbers are 1-based in current scene order; repeated headings are distinguished by scene number.
+
+```markdown
+## Scene 01 — INT. RYAN'S BEDROOM - NIGHT
+
+### 01.01 · 5s · Medium close-up
+**Title:** Ryan answers the phone
+**Action:** Ryan turns from his computer when Marisol calls.
+**Sound/dialogue:** MARISOL: They're throwing me out.
+**Continuity/assets:** Ryan, workstation, phone display.
+
+### 01.02 · 6s · Push-in
+**Title:** The Cromwell mark
+**Action:** Ryan recognises his father's company on the letter.
+**Sound/dialogue:** A low tone replaces the music.
+**Continuity/assets:** Eviction letter, Cromwell logo.
+```
+
+- `## Scene NN — HEADING` identifies scenes. `### NN.MM · Ns · CAMERA` identifies shots in sequence (fractional seconds supported). The scene heading must match its Fountain heading, with typographic apostrophes and dashes normalised.
+- **Title** is optional (derived from action if absent). **Action** is required. **Sound/dialogue** and **Continuity/assets** map to the shot's dialogue and continuity fields. Other Markdown outside numbered scenes is ignored.
+- The import does not automatically attach media, world-library asset records, or timeline audio cues.
+- Validation and insertion are transactional: mismatched headings or changed shot counts prevent import entirely. Existing shots are never overwritten. **Append** must be explicitly enabled for scenes with existing shots. Re-importing with Append duplicates those shots.
+- Limits: Markdown up to 1 MB, 1000 scenes, 2000 shots, 600 seconds per shot.
 
 ## Generation tools
 
