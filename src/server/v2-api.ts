@@ -1,6 +1,9 @@
-import { db, all, one, run, id, type Row } from "./db";
+import { db, all, one, run, id, dataDir, type Row } from "./db";
+import { join } from "node:path";
+import { mkdir, copyFile, rm } from "node:fs/promises";
+import { timecode } from "./export";
 import { requireValue } from "./auth";
-import { mediaPath } from "./worker";
+import { mediaPath, execProcess } from "./worker";
 import { availableSeedanceModels, seedanceConfigured, seedanceOptions } from "./seedance";
 import { IMAGE_MODELS, imageConfigured } from "./images";
 
@@ -43,7 +46,10 @@ function initialDoc(projectId: string) {
 }
 function getScreenplay(projectId: string) {
   const row = one("SELECT * FROM v2_screenplays WHERE project_id=?", projectId);
-  return row ? { document: JSON.parse(row.document_json), revision: row.revision as number } : { document: initialDoc(projectId), revision: 0 };
+  if (row) return { document: JSON.parse(row.document_json), revision: row.revision as number };
+  run("INSERT OR IGNORE INTO v2_screenplays(project_id,document_json,revision) VALUES(?,?,0)", projectId, JSON.stringify(initialDoc(projectId)));
+  const stored = one("SELECT * FROM v2_screenplays WHERE project_id=?", projectId)!;
+  return { document: JSON.parse(stored.document_json), revision: stored.revision as number };
 }
 function activeLines(projectId: string) {
   return new Set(docLines(getScreenplay(projectId).document).map(line => line.id));
@@ -84,6 +90,48 @@ export async function v2Api(req: Request, parts: string[], pid: string): Promise
     if (parts.length === 3 && method === "GET") {
       const screenplay = getScreenplay(project.id);
       return reply({ ...screenplay, takes: all("SELECT * FROM v2_takes WHERE project_id=? ORDER BY sort_order,created_at,id", project.id).map(deserializeTake) });
+    }
+    if (parts[3] === "export" && method === "GET") {
+      const doc = getScreenplay(project.id).document;
+      const lines = docLines(doc);
+      const rows = all("SELECT t.*, m.filename, m.stored_name FROM v2_takes t LEFT JOIN media m ON m.id=t.media_id WHERE t.project_id=? AND t.include_in_cut=1 AND t.media_id IS NOT NULL",project.id);
+      const selected = lines.flatMap(line => rows.filter(t=>t.anchor_line_id===line.id)
+        .sort((a,b)=>a.sort_order-b.sort_order || a.id.localeCompare(b.id)));
+      requireValue(selected.length > 0, "Include at least one generated take before exporting.",409);
+      requireValue(selected.length <= 999, "EDL supports up to 999 events in one handoff.");
+      const fps = project.fps;
+      let cursor = fps * 3600;
+      const events: string[] = ["TITLE: " + String(project.title).replace(/[\r\n]/g," "), "FCM: NON-DROP FRAME", ""];
+      const manifest: Row[] = [];
+      const directory = join(dataDir,"work","v2-export-"+id());
+      await mkdir(join(directory,"media"),{recursive:true});
+      try {
+        for (let i=0; i<selected.length; i++) {
+          const take = selected[i];
+          const seconds = Number(JSON.parse(take.options_json).duration || 8);
+          const frames = Math.max(1,Math.round(seconds*fps));
+          const reel = "ML" + String(i+1).padStart(6,"0");
+          const dest = reel + "-" + take.stored_name;
+          events.push(String(i+1).padStart(3,"0") + "  " + reel + " V     C        " +
+            timecode(0,fps) + " " + timecode(frames,fps) + " " + timecode(cursor,fps) + " " + timecode(cursor+frames,fps),
+            "* FROM CLIP NAME: " + dest, "* TAKE: " + take.id, "");
+          manifest.push({takeId:take.id,reel,media:"media/"+dest,originalFilename:take.filename,
+            durationSeconds:seconds,recordStartFrames:cursor,recordEndFrames:cursor+frames});
+          const m = one("SELECT * FROM media WHERE id=?",take.media_id)!;
+          await copyFile(mediaPath(m),join(directory,"media",dest));
+          cursor += frames;
+        }
+        const script = lines.map(l=>l.text).join("\n");
+        await Bun.write(join(directory,"screenplay.fountain"),script);
+        await Bun.write(join(directory,"timeline.edl"),events.join("\n"));
+        await Bun.write(join(directory,"manifest.json"),JSON.stringify({
+          title:project.title,fps,notes:"Straight cuts in screenplay/tile order. Embedded audio remains in source clips; finish in Resolve.",
+          clips:manifest
+        },null,2));
+        await execProcess(["zip","-q","-r","handoff.zip","timeline.edl","screenplay.fountain","manifest.json","media"],{cwd:directory});
+        const archive = await Bun.file(join(directory,"handoff.zip")).arrayBuffer();
+        return new Response(archive,{headers:{"Content-Type":"application/zip","Content-Disposition":'attachment; filename="mothlight-v2-handoff.zip"'}});
+      } finally { await rm(directory,{recursive:true,force:true}); }
     }
     if (parts[3] === "screenplay" && method === "PUT") {
       const b = await req.json();
@@ -194,7 +242,11 @@ export async function v2Api(req: Request, parts: string[], pid: string): Promise
         "Configure the selected generation service in settings.",409);
       const input: Row = referenceInput(take,pid,project);
       input.v2TakeId = take.id;
-      if (provider === "byteplus") input.seedance = seedanceOptions(take.model, JSON.parse(take.options_json), input);
+      if (provider === "byteplus") {
+        const settings = JSON.parse(take.options_json);
+        if (!JSON.parse(take.reference_ids_json).length && settings.mode === "references") settings.mode = "text";
+        input.seedance = seedanceOptions(take.model, settings, input);
+      }
       const jid = id();
       db.transaction(() => {
         run("INSERT INTO jobs(id,profile_id,project_id,kind,provider,model,prompt,input_json) VALUES(?,?,?,?,?,?,?,?)",
