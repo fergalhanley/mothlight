@@ -234,6 +234,14 @@ export async function v2Api(req: Request, parts: string[], pid: string): Promise
         newId,project.id,take.anchor_line_id,nextOrder,take.provider,take.model,take.prompt,take.options_json,take.reference_ids_json,take.style_asset_id);
       return reply(deserializeTake(takeFor(newId,pid)),201);
     }
+    if (parts[3] === "import-video" && method === "POST") {
+      requireDraft(take);
+      const b = await req.json();
+      const m = one("SELECT * FROM media WHERE id=? AND profile_id=?",b.mediaId,pid);
+      requireValue(m && m.mime.startsWith("video/"),"Choose a video from this profile.");
+      run("UPDATE v2_takes SET media_id=?,status='completed' WHERE id=?",m.id,take.id);
+      return reply(deserializeTake(takeFor(take.id,pid)));
+    }
     if (parts[3] === "generate" && method === "POST") {
       requireDraft(take);
       requireValue(take.prompt.trim(), "Enter a descriptive prompt before generation.");
