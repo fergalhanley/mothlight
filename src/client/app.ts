@@ -1,3 +1,4 @@
+import { mountScreenplayV2, unmountScreenplayV2 } from "./v2";
 type R = Record<string, any>;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const dialog = document.querySelector<HTMLDialogElement>("#dialog")!;
@@ -131,6 +132,7 @@ function authView(setup: boolean) {
   app.innerHTML = `<main class="auth"><div class="auth-art"><img class="auth-icon" src="/icon.png" alt="Moth with violet, pink, amber, and green wings" width="712" height="712"><span class="eyebrow">THE SPACE BETWEEN STORY AND SCREEN</span><h1>Bring your<br>stories to light.</h1><p>A considered workspace for the films only you can make.</p><div class="wordmark">mothlight</div></div><section><span class="eyebrow">YOUR FILMMAKING STUDIO</span><h2>${setup ? "Make room for your next film." : "Welcome back."}</h2><p>${setup ? "Create your local studio account. Projects and media live on this machine." : "Sign in to your studio."}</p><form data-form="auth" data-setup="${setup}">${setup ? field("Your name", "name") : ""}${field("Email", "email", "", "email")}${field("Password · at least 12 characters", "password", "", "password")}<button class="button primary" type="submit">${setup ? "Create studio" : "Open studio"} <span>↗</span></button></form></section></main>`;
 }
 function render() {
+  unmountScreenplayV2();
   stopCoverPreview();
   const p = state.project,
     list = shots(),
@@ -166,23 +168,7 @@ function render() {
     )}</div><div class="sidebar-bottom"><span class="local-dot"></span> Local studio<button class="link" data-action="logout">Sign out</button></div></aside><main class="main"><header class="topbar"><div class="breadcrumb">${esc(state.profiles.find((v) => v.id === state.profile)?.name || "Studio")} <span>/</span> ${esc(p?.title || (state.view === "library" ? "World library" : state.view === "production" ? "Production" : "Projects"))}</div><span class="account">${esc(state.user?.name)}</span></header>${
     state.view === "projects"
       ? p
-        ? `<div class="project-heading"><div><span class="eyebrow">${esc(state.workspace.series.find((s: R) => s.id === p.series_id)?.title || "INDEPENDENT PRODUCTION")} / ${esc(p.kind)}</span><h1>${esc(p.title)}</h1><p>${esc(p.logline || "Every film begins with an idea.")}</p></div><div class="heading-actions">${button("Film settings", "project-edit")}${button("Resolve handoff ↗", "handoff", "", "button primary")}</div></div><div class="project-nav"><div class="tabs">${[
-            ["story", "Story"],
-            ["shots", "Shot workspace"],
-            ["sound", "Sound"],
-            ["cut", "Rough cut"],
-          ]
-            .map(([v, l]) =>
-              button(
-                l,
-                `tab-${v}`,
-                "",
-                `tab ${state.tab === v ? "active" : ""}`,
-              ),
-            )
-            .join(
-              "",
-            )}</div><span>${selected}/${list.length} takes selected · ${list.reduce((n, s) => n + s.duration, 0).toFixed(1)}s</span></div>${state.tab === "story" ? storyView() : state.tab === "shots" ? shotView() : state.tab === "sound" ? soundView() : cutView()}`
+        ? `<div class="project-heading"><div><span class="eyebrow">${esc(state.workspace.series.find((s: R) => s.id === p.series_id)?.title || "INDEPENDENT PRODUCTION")} / ${esc(p.kind)}</span><h1>${esc(p.title)}</h1><p>${esc(p.logline || "Write the story; follow the images.")}</p></div><div class="heading-actions">${button("Film settings", "project-edit")}</div></div><section class="page v2-page"><div id="v2-host"></div></section>`
         : projectsView()
       : state.view === "library"
         ? libraryView()
@@ -190,6 +176,11 @@ function render() {
           ? productionView()
           : settingsView()
   }</main></div>`;
+  const v2host = document.querySelector<HTMLElement>("#v2-host");
+  if (v2host && state.project)
+    void mountScreenplayV2(v2host, { profileId: state.profile, project: state.project,
+      workspace: state.workspace,
+      readonly: state.profiles.find((p) => p.id === state.profile)?.role === "viewer" });
   if (state.profiles.find((p) => p.id === state.profile)?.role === "viewer") {
     app
       .querySelectorAll<HTMLFormElement>("form")
