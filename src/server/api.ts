@@ -1,3 +1,4 @@
+import { v2Api } from "./v2-api";
 import { mediaResponse } from "./media";
 import { parseScreenplay } from "./screenplay";
 import { parseShotMarkdown, normalizedHeading } from "./shot-markdown";
@@ -401,6 +402,7 @@ export async function api(req: Request): Promise<Response> {
     parts = tail.split("/"),
     write = !["GET", "HEAD"].includes(req.method);
   const membership = access(user.id, pid, write);
+  if (parts[0] === "v2") return v2Api(req, parts, pid);
   if (!tail && req.method === "PATCH") {
     const b = await body(req);
     textField(b.name, "name", 200);
