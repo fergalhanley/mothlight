@@ -252,7 +252,10 @@ export async function tick() {
     try {
       const { media, cost } =
         job.kind === "roughcut" ? await renderCut(job) : await generate(job);
-      if (job.kind === "video")
+      const v2TakeId: string | undefined = JSON.parse(job.input_json).v2TakeId;
+      if (job.kind === "video" && v2TakeId) {
+        run("UPDATE v2_takes SET media_id=?,status='completed' WHERE id=? AND job_id=?",media.id,v2TakeId,job.id);
+      } else if (job.kind === "video")
         run(
           "INSERT INTO takes(id,shot_id,media_id,label,provider,model,prompt,cost) VALUES(?,?,?,?,?,?,?,?)",
           id(),
@@ -264,7 +267,11 @@ export async function tick() {
           job.prompt,
           cost,
         );
-      if (job.kind === "image") {
+      if (job.kind === "image" && v2TakeId) {
+        const old = one("SELECT reference_ids_json FROM v2_takes WHERE id=?",v2TakeId);
+        if (old) run("UPDATE v2_takes SET reference_ids_json=? WHERE id=?",
+          JSON.stringify([...JSON.parse(old.reference_ids_json),media.id]),v2TakeId);
+      } else if (job.kind === "image") {
         const target = JSON.parse(job.input_json).frameTarget || "storyboard";
         if (target === "endframe")
           run("UPDATE shots SET end_frame_id=? WHERE id=?", media.id, job.shot_id);
@@ -281,6 +288,9 @@ export async function tick() {
         job.id,
       );
     } catch (e) {
+      const failedV2: string | undefined = JSON.parse(job.input_json).v2TakeId;
+      if (failedV2 && job.kind === "video")
+        run("UPDATE v2_takes SET status='failed' WHERE id=? AND job_id=?",failedV2,job.id);
       run(
         "UPDATE jobs SET status='failed',error=? WHERE id=?",
         (e as Error).message,
