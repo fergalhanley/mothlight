@@ -1,4 +1,4 @@
-# Mothlight
+> **v2 experimental branch**: See [docs/v2.md](docs/v2.md). This branch uses a distinct data directory (`.mothlight-v2`). Run `bun install` after checkout to resolve the new Tiptap dependencies and refresh the lockfile. Original v1 work remains untouched in `.mothlight`.\n\n# Mothlight
 
 A local-first narrative filmmaking studio, with Toffler's script / visuals / audio workspace reworked around scenes and shots. Develop stories, keep a shared world bible, produce reference frames and takes, assemble a rough cut, and finish in DaVinci Resolve.
 
