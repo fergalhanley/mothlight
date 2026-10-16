@@ -221,7 +221,7 @@ function onDragOver(e: DragEvent) {
 }
 function onDragLeave(e: DragEvent) {
   const aside = (e.target as HTMLElement).closest<HTMLElement>(".v2-line-aside");
-  if (aside && !(e.relatedTarget instanceof Node && aside.contains(e.relatedTarget)))
+  if (aside && !(e.relatedTarget instanceof window.Node && aside.contains(e.relatedTarget)))
     aside.classList.remove("v2-drop-target");
 }
 async function onDrop(e: DragEvent) {
