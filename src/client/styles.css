@@ -1532,3 +1532,86 @@ details .frame {
     font-size: 17px;
   }
 }
+
+
+/* Mothlight v2 — screenplay + line-aware take surface */
+.v2-page { max-width: 1800px; padding: 12px 36px 80px; }
+.v2-heading { display:flex; gap:20px; align-items:center; justify-content:space-between; padding:14px 0 22px; }
+.v2-heading h2 { font-family:var(--serif);font-size:26px; }
+.v2-heading p {font-size:12px;}
+.v2-toolbar {display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.v2-toolbar button,.v2-ref-actions button,.v2-modal footer button,.v2-modal header button {
+  background:var(--panel2); border:1px solid var(--line);border-radius:5px;color:var(--text);padding:7px 12px;cursor:pointer;
+}
+#v2-status {color:var(--muted);font-size:11px;}
+#v2-status.error,#v2-dialog-message {color:#efb0aa;}
+#v2-editor {border:1px solid var(--line);border-radius:10px;background:#19161e;overflow:hidden;min-height:70vh;}
+.v2-screenplay-prosemirror {outline:none; min-height:70vh; padding:20px 0 80px;}
+.v2-line {display:grid;grid-template-columns:minmax(0, 1fr) minmax(265px,40%);border-bottom:1px solid #42394a66;align-items:stretch;}
+.v2-line-text {min-width:0;padding:15px 26px;font:14px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+ white-space:pre-wrap;overflow-wrap:anywhere;align-self:start;outline:0;min-height:52px;}
+.v2-line-text:focus {background:#c5a3f509;}
+.v2-line-aside {padding:6px 16px 6px 18px; border-left:1px solid #42394a55;display:flex;flex-direction:column;gap:5px;position:relative;min-height:52px;}
+.v2-line-add {font-size:16px;border:1px dashed transparent;background:transparent;color:transparent;border-radius:5px;width:30px;height:28px;align-self:flex-start;cursor:pointer;}
+.v2-line:hover .v2-line-add,.v2-line-add:focus-visible {border-color:#795e8d;color:var(--accent);background:#392846;}
+.v2-line-aside.v2-drop-target {background:#61407840;outline:1px dashed var(--accent);outline-offset:-3px;}
+.v2-tile {border:1px solid #594c64;background:#27202f;border-radius:5px;display:flex;align-items:center;gap:8px;min-height:64px;padding:5px 6px;}
+.v2-tile:hover {border-color:var(--accent);}
+.v2-drag {color:var(--muted);cursor:grab;user-select:none;font-size:20px;}
+.v2-tile-thumb {width:78px;height:48px;border-radius:3px;background:#3c3145;overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center;}
+.v2-tile-thumb img,.v2-tile-thumb video {width:100%;height:100%;object-fit:cover;}
+.v2-placeholder {font-size:22px;color:var(--muted);}
+.v2-tile-info {min-width:0;display:flex;flex-direction:column;flex:1;}
+.v2-tile-info strong {font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;}
+.v2-tile-info small {font-size:9px;color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.v2-tile-actions {display:flex;align-items:center;gap:1px;}
+.v2-tile-actions button {border:0;background:transparent;color:var(--muted);font-size:15px;padding:4px;cursor:pointer;}
+.v2-tile-actions button:hover {color:var(--accent);}
+.v2-modal {background:var(--panel);border:1px solid #65506d;color:var(--text);border-radius:10px;padding:25px;width:min(920px,94vw);max-height:90vh;overflow-y:auto;box-shadow:0 20px 90px #0009;}
+.v2-modal::backdrop {background:#08050dbb;}
+.v2-modal header {display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:18px;border-bottom:1px solid var(--line);margin-bottom:18px;}
+.v2-modal h2 {font-family:var(--serif);font-size:28px;}
+.v2-modal header button {font-size:20px;}
+.v2-modal form {display:flex;flex-direction:column;gap:17px;}
+.v2-form-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.v2-modal label {font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:6px;}
+.v2-modal input:not([type="checkbox"]),.v2-modal select,.v2-modal textarea {
+  color:var(--text);background:#15111a;border:1px solid var(--line);border-radius:4px;padding:9px;width:100%;
+}
+.v2-modal input:disabled,.v2-modal select:disabled,.v2-modal textarea:disabled {opacity:0.78;}
+.v2-modal textarea {resize:vertical;font:13px/1.5 ui-monospace,monospace;}
+.v2-modal label.v2-check {display:flex;flex-direction:row;align-items:center;gap:8px;}
+.v2-modal label.v2-check input {width:auto;}
+.v2-modal .v2-hint {color:#9f92a9;font-size:10px;}
+#v2-references {min-height:100px;display:flex;gap:9px;overflow-x:auto;align-items:center;background:#141018;border:1px dashed #564362;border-radius:7px;padding:12px;max-width:100%;}
+.v2-reference {width:128px;height:92px;position:relative;flex:0 0 128px;}
+.v2-reference img {width:100%;height:100%;object-fit:cover;border-radius:4px;}
+.v2-reference button {position:absolute;right:2px;top:2px;border:0;border-radius:3px;background:#15111acf;color:#fff;padding:2px 6px;}
+.v2-reference button[data-ref-left] {right:auto;left:2px;}
+.v2-upload-drop {display:flex!important;align-items:center;justify-content:center;border:1px dashed var(--accent);border-radius:5px;min-width:100px;height:88px;cursor:pointer;text-align:center;color:var(--accent)!important;}
+.v2-ref-actions {display:flex;gap:7px;}
+#v2-world-list {background:#18141d;border:1px solid var(--line);padding:14px;max-height:280px;overflow:auto;border-radius:6px;}
+#v2-world-list[hidden] {display:none;}
+.v2-world-row {display:grid;grid-template-columns:170px minmax(0,1fr);gap:12px;align-items:center;padding:8px;border-bottom:1px solid var(--line);}
+.v2-world-row span {font-size:11px;}
+.v2-world-row>div {display:flex;gap:6px;overflow-x:auto;}
+.v2-world-row button {border:1px solid var(--line);padding:2px;background:transparent;flex:0 0 70px;height:56px;cursor:pointer;}
+.v2-world-row img {width:100%;height:100%;object-fit:cover;}
+.v2-video {width:100%;max-height:300px;background:#000;object-fit:contain;margin:0 0 15px;}
+.v2-modal footer {display:flex;justify-content:flex-end;gap:10px;align-items:center;flex-wrap:wrap;}
+.v2-modal footer .primary {background:var(--accent);color:#211429;}
+@media(max-width:950px) {
+  .v2-page {padding:10px;}
+  .v2-heading {align-items:flex-start;flex-direction:column;}
+  .v2-line {grid-template-columns:minmax(0,1fr) minmax(200px,46%);}
+  .v2-line-text {padding:12px 9px;font-size:12px;}
+  .v2-line-aside {padding:5px;}
+  .v2-tile-thumb {width:49px;height:43px;}
+  .v2-tile-actions {flex-direction:column;}
+}
+@media(max-width:600px) {
+  .v2-line {grid-template-columns:minmax(0,1fr) minmax(155px,48%);}
+  .v2-tile-thumb {display:none;}
+  .v2-form-grid {grid-template-columns:1fr;}
+  .v2-modal {padding:14px;}
+}
