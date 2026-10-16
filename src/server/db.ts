@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
-export const dataDir = resolve(process.env.MOTHLIGHT_DATA_DIR || ".mothlight");
+export const dataDir = resolve(process.env.MOTHLIGHT_V2_DATA_DIR || ".mothlight-v2");
 mkdirSync(join(dataDir, "media"), { recursive: true });
 export function openDatabase(path = join(dataDir, "studio.sqlite")) {
   const db = new Database(path, { create: true, strict: true });
