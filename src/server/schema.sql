@@ -22,3 +22,29 @@ CREATE INDEX IF NOT EXISTS shots_order ON shots(scene_id,position);
 CREATE INDEX IF NOT EXISTS jobs_queue ON jobs(status,created_at);
 INSERT OR IGNORE INTO migrations(version) VALUES(1);
 INSERT OR IGNORE INTO migrations(version) VALUES(2);
+
+-- v2: one editable screenplay per project; anchor takes to durable line IDs.
+CREATE TABLE IF NOT EXISTS v2_screenplays (
+  project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+  document_json TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS v2_takes (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  anchor_line_id TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  provider TEXT NOT NULL DEFAULT 'byteplus',
+  model TEXT NOT NULL DEFAULT 'dreamina-seedance-2-5-260628',
+  prompt TEXT NOT NULL DEFAULT '',
+  options_json TEXT NOT NULL DEFAULT '{}',
+  reference_ids_json TEXT NOT NULL DEFAULT '[]',
+  style_asset_id TEXT REFERENCES assets(id) ON DELETE SET NULL,
+  media_id TEXT REFERENCES media(id) ON DELETE SET NULL,
+  job_id TEXT REFERENCES jobs(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','queued','completed','failed')),
+  include_in_cut INTEGER NOT NULL DEFAULT 1 CHECK(include_in_cut IN (0,1)),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS v2_takes_order ON v2_takes(project_id,anchor_line_id,sort_order);
