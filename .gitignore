@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .mothlight/
+.mothlight-v2/
 .env
 .env.*
 !.env.example
