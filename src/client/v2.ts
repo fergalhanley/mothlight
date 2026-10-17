@@ -96,6 +96,7 @@ const ScreenplayLine = Node.create({
       nodeViews.add(render);
       render();
       return { dom: outer, contentDOM: content,
+        stopEvent(event: Event) { return event.target instanceof Element && !!event.target.closest(".v2-line-aside"); },
         update(next: any) {
           if (next.type.name !== "screenplayLine") return false;
           if (lineId !== next.attrs.lineId) { lineId = next.attrs.lineId; render(); }
