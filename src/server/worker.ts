@@ -305,6 +305,7 @@ export function startWorker() {
   run(
     "UPDATE jobs SET status='failed',error='Server restarted during execution. Review the provider before submitting another attempt.' WHERE status='running'",
   );
+  run("UPDATE v2_takes SET status='failed' WHERE status='queued' AND job_id IN (SELECT id FROM jobs WHERE status IN ('failed','cancelled'))");
   const timer = setInterval(() => void tick(), 1000);
   return () => clearInterval(timer);
 }
