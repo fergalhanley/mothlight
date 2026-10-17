@@ -146,6 +146,7 @@ export async function mountScreenplayV2(host: HTMLElement, context: Context) {
     setStatus("Saved");
     host.addEventListener("click", onHostClick);
     host.addEventListener("dragstart", onDragStart);
+    host.addEventListener("dragend", () => { dragTake=null; document.querySelectorAll(".v2-drop-target").forEach(el=>el.classList.remove("v2-drop-target")); });
     host.addEventListener("dragover", onDragOver);
     host.addEventListener("dragleave", onDragLeave);
     host.addEventListener("drop", onDrop);
@@ -251,8 +252,9 @@ async function onDrop(e: DragEvent) {
   dragTake = null;
   if (!moving || !lineIds().includes(targetId)) return;
   const target = (e.target as HTMLElement).closest<HTMLElement>(".v2-tile");
-  const index = target ? Math.max(0,takeList(targetId).findIndex(t=>t.id===target.dataset.take) +
-    (e.clientY > target.getBoundingClientRect().top + target.offsetHeight / 2 ? 1 : 0)) : takeList(targetId).length;
+  const remaining = takeList(targetId).filter(t=>t.id!==moving.id);
+  const index = target ? Math.max(0,remaining.findIndex(t=>t.id===target.dataset.take) +
+    (e.clientY > target.getBoundingClientRect().top + target.offsetHeight / 2 ? 1 : 0)) : remaining.length;
   const groups = new Map<string,Row[]>();
   for (const line of lineIds()) groups.set(line,takeList(line).filter(t=>t.id!==moving.id));
   const destination = groups.get(targetId)!;
