@@ -121,7 +121,7 @@ export async function mountScreenplayV2(host: HTMLElement, context: Context) {
   const key = ++mountKey;
   ctx = context; loaded = false; pending = false; saving = false;
   host.innerHTML = '<div class="v2-heading"><div><h2>Screenplay</h2><p>Write freely. Attach and rearrange generated takes beside any line.</p></div>' +
-    '<div class="v2-toolbar"><span id="v2-status">Loading…</span><button type="button" id="v2-refresh">Refresh takes</button>' +
+    '<div class="v2-toolbar"><span id="v2-status">Loading…</span><label class="v2-import-script">Import Fountain<input id="v2-fountain" type="file" accept=".fountain,.txt,text/plain" hidden></label><button type="button" id="v2-refresh">Refresh takes</button>' +
     '<button type="button" id="v2-export">Resolve handoff ↗</button></div></div><div id="v2-editor"></div>';
   try {
     const data = await send(projectPath());
@@ -148,6 +148,22 @@ export async function mountScreenplayV2(host: HTMLElement, context: Context) {
     host.addEventListener("dragleave", onDragLeave);
     host.addEventListener("drop", onDrop);
     byId("v2-refresh")?.addEventListener("click", () => void refreshTakes());
+    byId("v2-fountain")?.addEventListener("change",async event=>{
+      const input=event.target as HTMLInputElement;
+      const file=input.files?.[0];
+      if (!file || !editor) return;
+      try {
+        if (file.size > 1_000_000) throw new Error("Screenplay file must be under 1 MB.");
+        if (!confirm("Replace the screenplay text with this file? Existing takes will reanchor to surviving lines.")) return;
+        const lines=(await file.text()).replace(/\r\n?/g,"\n").split("\n");
+        editor.commands.setContent({type:"doc",content:lines.map(text=>({
+          type:"screenplayLine",attrs:{lineId:crypto.randomUUID()},
+          ...(text?{content:[{type:"text",text}]}:{})
+        }))});
+        scheduleSave();
+      } catch(error){alertError(error);}
+      finally {input.value="";}
+    });
     byId("v2-export")?.addEventListener("click", () => { void exportSequence(); });
     pollTimer = setInterval(() => { if (ctx && takes.some(t=>t.status==="queued")) void refreshTakes(); },7000);
   } catch(e) { alertError(e); }
@@ -294,6 +310,15 @@ function openDialog(t: Row) {
   const options = t.options || {};
   const styleOptions = '<option value="">None</option>' + (ctx!.workspace.assets || [])
     .filter((a:Row)=>a.kind==="style").map((a:Row)=>'<option value="'+escapeHtml(a.id)+'"'+(t.style_asset_id===a.id?' selected':'')+'>'+escapeHtml(a.name)+'</option>').join("");
+  const frameProvider = ctx!.workspace.imageProviders?.google ? "google" :
+    ctx!.workspace.imageProviders?.openai ? "openai" : "";
+  const frameModels = ctx!.workspace.imageModels?.[frameProvider] || [];
+  const frameSelect = '<label>Image provider<select name="frameProvider"' + attrs + '>' +
+    ["google","openai"].filter(p=>ctx!.workspace.imageProviders?.[p])
+      .map(p=>'<option value="'+p+'"'+(frameProvider===p?' selected':'')+'>'+({google:"Nano Banana · Google",openai:"GPT Image · OpenAI"} as Row)[p]+'</option>').join("") +
+    '</select></label><label>Model<select name="frameModel"' + attrs + '>' +
+    frameModels.map((m:Row)=>'<option value="'+escapeHtml(m.id)+'">'+escapeHtml(m.name)+'</option>').join("")+
+    '</select></label><label>Storyboard prompt<textarea name="framePrompt" rows="3" placeholder="Describe the image you want to generate."'+attrs+'></textarea></label>';
   const dlg = modal();
   dlg.innerHTML = '<header><div><span class="eyebrow">MOTHLIGHT V2</span><h2>'+ (locked?"View take":"Edit take") +'</h2></div><button type="button" id="v2-close" aria-label="Close">×</button></header>' +
     (t.media_id ? '<video class="v2-video" src="'+media(t.media_id)+'" controls></video>' : '') +
@@ -310,10 +335,11 @@ function openDialog(t: Row) {
     (!locked?'<div class="v2-ref-actions"><button type="button" id="v2-paste">Paste image</button><button type="button" id="v2-world">+ World asset</button></div>':'') +
     '<div id="v2-world-list" hidden>'+imageOptionRows()+'</div>' +
     '<label>Generation prompt<textarea name="prompt" rows="7" placeholder="Describe the intended sequence of shots. Nothing is automatically added. " '+attrs+'>'+escapeHtml(t.prompt)+'</textarea></label>' +
+    '<details class="v2-frame-generator"><summary>Storyboard generation · Nano Banana / GPT Image</summary>' + frameSelect + '</details>' +
     '<label class="v2-check"><input type="checkbox" name="includeInCut"'+(t.includeInCut?' checked':'')+(ctx!.readonly?' disabled':'')+'> Include in Resolve handoff</label>' +
     '<p id="v2-dialog-message" role="status"></p>' +
     '<footer><button type="button" id="v2-cancel">Close</button>' +
-    (!locked ? '<button type="button" id="v2-storyboard">Generate storyboard</button><button type="submit" name="intent" value="save">Save draft</button><button class="button primary" type="submit" name="intent" value="generate">Save & generate video</button>' : '') +
+    (!locked ? '<button type="button" id="v2-storyboard">Generate storyboard</button><button type="button" id="v2-import-video">Import video</button><input type="file" id="v2-import-video-file" accept="video/mp4,video/webm,video/quicktime" hidden><button type="submit" name="intent" value="save">Save draft</button><button class="button primary" type="submit" name="intent" value="generate">Save & generate video</button>' : '') +
     '</footer></form>';
   references();
   dlg.showModal();
@@ -349,6 +375,27 @@ function onModalPaste(e: ClipboardEvent) {
 function onModalChange(e: Event) {
   const input = e.target as HTMLInputElement;
   if (input.id==="v2-file" && input.files) void addFiles(Array.from(input.files));
+  if (input.id==="v2-import-video-file" && input.files?.[0]) {
+    void (async()=>{
+      try {
+        if (!current) return;
+        await saveDraft();
+        const form=new FormData(), file=input.files![0];
+        form.append("file",file,file.name);
+        const m=await send(endpoint("media"),"POST",form);
+        ctx!.workspace.media.push(m);
+        await send(v2path("takes/"+current.id+"/import-video"),"POST",{mediaId:m.id});
+        await refreshTakes(false);
+        modal().close();
+        setStatus("Video imported");
+      } catch(error) {dialogStatus((error as Error).message);}
+    })();
+  }
+  if (input.name==="frameProvider") {
+    const select=modal().querySelector<HTMLSelectElement>('[name="frameModel"]');
+    if (select) select.innerHTML=(ctx!.workspace.imageModels?.[input.value] || [])
+      .map((m:Row)=>'<option value="'+escapeHtml(m.id)+'">'+escapeHtml(m.name)+'</option>').join("");
+  }
   if (input.name==="provider") {
     const select = modal().querySelector<HTMLSelectElement>('[name="model"]');
     if (select) select.innerHTML=modelOptions(input.value, "");
@@ -360,6 +407,7 @@ function onModalClick(e: MouseEvent) {
   if (target.id==="v2-paste") {void pasteImage();return;}
   if (target.id==="v2-world") {const picker=byId("v2-world-list")!;picker.hidden=!picker.hidden;return;}
   if (target.id==="v2-storyboard") {void generateFrame();return;}
+  if (target.id==="v2-import-video") {byId("v2-import-video-file")?.click();return;}
   const world = target.closest<HTMLButtonElement>("[data-ref]");
   if (world && !ctx!.readonly) {
     stagedRefs.push(world.dataset.ref!); references();byId("v2-world-list")!.hidden=true;return;
@@ -404,12 +452,12 @@ async function generateFrame() {
   if (!current) return;
   try {
     await saveDraft();
-    const provider = ctx!.workspace.imageProviders?.google ? "google" : "openai";
-    const models = ctx!.workspace.imageModels?.[provider] || [];
-    if (!models.length || !ctx!.workspace.imageProviders?.[provider]) throw new Error("Configure an image provider in Settings first.");
-    const prompt = window.prompt("Storyboard image prompt (not automatically filled):","");
-    if (!prompt?.trim()) return;
-    await send(v2path("takes/"+current.id+"/generate-frame"),"POST",{provider,model:models[0].id,prompt});
+    const form=byId("v2-form") as HTMLFormElement;
+    const provider=String((form.elements.namedItem("frameProvider") as HTMLSelectElement).value);
+    const model=String((form.elements.namedItem("frameModel") as HTMLSelectElement).value);
+    const prompt=String((form.elements.namedItem("framePrompt") as HTMLTextAreaElement).value);
+    if (!prompt.trim()) throw new Error("Enter a storyboard prompt first.");
+    await send(v2path("takes/"+current.id+"/generate-frame"),"POST",{provider,model,prompt});
     dialogStatus("Storyboard image queued. Refresh this take after Production shows completion.");
   } catch(error) { dialogStatus((error as Error).message); }
 }
