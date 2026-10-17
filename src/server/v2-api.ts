@@ -88,6 +88,7 @@ export async function v2Api(req: Request, parts: string[], pid: string): Promise
   if (parts[1] === "projects" && parts[2]) {
     const project = projectFor(parts[2], pid);
     if (parts.length === 3 && method === "GET") {
+      run("UPDATE v2_takes SET status='failed' WHERE project_id=? AND status='queued' AND job_id IN (SELECT id FROM jobs WHERE status IN ('failed','cancelled'))", project.id);
       const screenplay = getScreenplay(project.id);
       return reply({ ...screenplay, takes: all("SELECT * FROM v2_takes WHERE project_id=? ORDER BY sort_order,created_at,id", project.id).map(deserializeTake) });
     }
