@@ -877,3 +877,55 @@ test("media byte ranges support seeking without exposing another profile", async
     ).status,
   ).toBe(403);
 });
+
+
+test("v2 screenplay line anchors survive edits, fork, deletion, and Resolve export", async () => {
+  const film = await post(p("projects"), { title:"V2 writing test",fps:24,width:64,height:64 });
+  const route = p("v2/projects/" + film.id);
+  const initial = (await call(route)).data;
+  expect(initial.revision).toBe(0);
+  expect(initial.document.content[0].attrs.lineId).toBeTruthy();
+  // The server persists the first document so IDs do not change across GETs.
+  expect((await call(route)).data.document.content[0].attrs.lineId).toBe(initial.document.content[0].attrs.lineId);
+  const originalId = initial.document.content[0].attrs.lineId;
+  const nextId = crypto.randomUUID();
+  const doc = {type:"doc",content:[
+    {type:"screenplayLine",attrs:{lineId:originalId},content:[{type:"text",text:"INT. APARTMENT — NIGHT"}]},
+    {type:"screenplayLine",attrs:{lineId:nextId},content:[{type:"text",text:"He reads the letter."}]}
+  ]};
+  const saved = await call(route+"/screenplay","PUT",{document:doc,revision:0});
+  expect(saved.status).toBe(200);
+  expect((await call(route+"/screenplay","PUT",{document:doc,revision:0})).status).toBe(409);
+  const added = (await call(route+"/takes","POST",{lineId:nextId})).data;
+  expect(added.anchor_line_id).toBe(nextId);
+  const modified = await call(p("v2/takes/"+added.id),"PATCH",{
+    prompt:"Camera pans slowly across the room.",provider:"byteplus",
+    options:{duration:5,resolution:"720p",ratio:"9:16",mode:"text",audio:false},
+    referenceIds:[]
+  });
+  expect(modified.status).toBe(200);
+  expect(modified.data.prompt).toBe("Camera pans slowly across the room.");
+  const forked = (await call(p("v2/takes/"+added.id+"/fork"),"POST",{})).data;
+  expect(forked.id).not.toBe(added.id);
+  expect(forked.prompt).toBe(modified.data.prompt);
+  const imported = await call(p("v2/takes/"+added.id+"/import-video"),"POST",{mediaId:video.id});
+  expect(imported.status).toBe(200);
+  expect(imported.data.status).toBe("completed");
+  expect((await call(p("v2/takes/"+added.id),"PATCH",{prompt:"Change an immutable take"})).status).toBe(409);
+  expect((await call(p("v2/takes/"+added.id),"PATCH",{includeInCut:false})).status).toBe(200);
+  expect((await call(p("v2/takes/"+added.id),"PATCH",{includeInCut:true})).status).toBe(200);
+  const deletedLineDoc = {type:"doc",content:[doc.content[0]]};
+  const deletedLine = await call(route+"/screenplay","PUT",{document:deletedLineDoc,revision:saved.data.revision});
+  expect(deletedLine.status).toBe(200);
+  const afterDeletion = (await call(route)).data;
+  expect(afterDeletion.takes.every((t:any)=>t.anchor_line_id===originalId)).toBe(true);
+  const reordered = await call(route+"/reorder","POST",{items:[
+    {id:forked.id,lineId:originalId},{id:added.id,lineId:originalId}
+  ]});
+  expect(reordered.status).toBe(200);
+  const handoff = await call(route+"/export");
+  expect(handoff.status).toBe(200);
+  expect(handoff.headers.get("content-type")).toContain("application/zip");
+  expect(handoff.data.byteLength).toBeGreaterThan(500);
+  expect((await call(route,"GET",undefined,outsiderSession)).status).toBe(403);
+});
