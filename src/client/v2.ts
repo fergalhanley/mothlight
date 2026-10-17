@@ -111,6 +111,7 @@ let mountKey = 0;
 export function unmountScreenplayV2() {
   mountKey++;
   if (saveTimer) clearTimeout(saveTimer);
+  if (pending && !saving && editor && ctx) void flushSave();
   if (pollTimer) clearInterval(pollTimer);
   // Save in-flight requests finish independently; the next mount reloads persisted state.
   editor?.destroy(); editor = null; nodeViews.clear(); loaded = false; ctx = null; current = null;
@@ -139,6 +140,7 @@ export async function mountScreenplayV2(host: HTMLElement, context: Context) {
       editable: !context.readonly,
       editorProps: { attributes: { class:"v2-screenplay-prosemirror", spellcheck:"true" } },
       onUpdate: () => { if (loaded) scheduleSave(); },
+      onBlur: () => { if (pending) void flushSave(); },
     });
     loaded = true;
     setStatus("Saved");
