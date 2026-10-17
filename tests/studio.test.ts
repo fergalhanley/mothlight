@@ -3,7 +3,7 @@ import { mkdtemp, rm, chmod } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 const root = await mkdtemp(join(tmpdir(), "mothlight-tests-"));
-process.env.MOTHLIGHT_DATA_DIR = root;
+process.env.MOTHLIGHT_V2_DATA_DIR = root;
 delete process.env.MOTHLIGHT_HOSTED;
 delete process.env.MOTHLIGHT_GENERATOR;
 delete process.env.BYTEPLUS_MODELARK_API_KEY;
