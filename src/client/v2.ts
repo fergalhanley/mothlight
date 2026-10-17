@@ -378,6 +378,11 @@ function onModalPaste(e: ClipboardEvent) {
 }
 function onModalChange(e: Event) {
   const input = e.target as HTMLInputElement;
+  if (input.name==="includeInCut" && current?.media_id && !ctx?.readonly) {
+    void send(v2path("takes/"+current.id),"PATCH",{includeInCut:input.checked})
+      .then(t=>{takes=takes.map(x=>x.id===t.id?t:x);current=t;paint();dialogStatus("Cut selection updated.");})
+      .catch(dialogStatus);
+  }
   if (input.id==="v2-file" && input.files) void addFiles(Array.from(input.files));
   if (input.id==="v2-import-video-file" && input.files?.[0]) {
     void (async()=>{
