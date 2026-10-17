@@ -1615,3 +1615,9 @@ details .frame {
   .v2-form-grid {grid-template-columns:1fr;}
   .v2-modal {padding:14px;}
 }
+
+.v2-import-script {font-size:11px;color:var(--accent);padding:8px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:5px;cursor:pointer;}
+.v2-import-script:hover {border-color:var(--accent);}
+.v2-frame-generator {border:1px solid var(--line);background:#17121a;border-radius:5px;padding:12px;}
+.v2-frame-generator summary {cursor:pointer;color:var(--accent);font-size:12px;}
+.v2-frame-generator label {margin-top:12px;}
